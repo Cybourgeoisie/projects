@@ -10,6 +10,8 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
+#include <vector>
+#include <algorithm>
 
 // Network Includes
 #include <sys/types.h>
@@ -25,7 +27,7 @@ const int PORT_NUMBER = 27890;
 
 // Define server limits
 const int MAX_CLIENTS = 4;
-const int BUFFER_SIZE = 129; // Size given in bytes
+const int BUFFER_SIZE = 1025; // Size given in bytes
 const int INCOMING_MESSAGE_SIZE = BUFFER_SIZE - 1;
 
 // Sockets
@@ -35,6 +37,18 @@ int max_client;
 
 // Socket descriptors used for select()
 fd_set socket_descriptors;
+
+// Handle the buffer
+char buffer[BUFFER_SIZE];
+
+// Client and file information
+struct FileItem {
+	unsigned int client_socket_id;
+	string name;
+	string hash;
+	unsigned int size;
+};
+vector<FileItem> file_list;
 
 
 /**
@@ -184,13 +198,13 @@ void P2PServer::handleExistingConnections()
 	struct sockaddr_in client_address;
 	socklen_t client_address_length = sizeof(client_address);
 
-	// Handle the buffer
-	char buffer[BUFFER_SIZE];
-
 	// Iterate over all clients
 	for (int i = 0; i < MAX_CLIENTS; i++) 
 	{
 		if (!FD_ISSET(client_sockets[i], &socket_descriptors)) continue;
+
+		// Clear out the buffer
+		memset(&buffer[0], 0, sizeof(buffer));
 
 		// Read the incoming message into the buffer
 		int message_size = read(client_sockets[i], buffer, INCOMING_MESSAGE_SIZE);
@@ -215,6 +229,33 @@ void P2PServer::handleExistingConnections()
 
 void P2PServer::handleRequest(int client_socket, char* buffer)
 {
+	string request = string(buffer);
+	request.erase(remove_if(request.begin(), request.end(), ::isspace), request.end());
+
+	if (request.compare("register") == 0)
+	{
+		cerr << "Registering files" << endl;
+	}
+	else if (request.compare("list") == 0)
+	{
+		cerr << "Listing files" << endl;
+	}
+	else if (request.compare("get") == 0)
+	{
+		cerr << "Getting file" << endl;
+	}
+	else
+	{
+		cerr << "Request unknown: " << request << endl;
+	}
+
+	// Push a new file to the list
+	/*FileItem file;
+	file.name = string(buffer);
+	file_list.push_back(file);
+
+	cerr << "File list: " << file_list[0].name << endl;*/
+
 	// Set the string terminating NULL byte on the end of the data read
 	buffer[strlen(buffer)] = '\0';
 	write(client_socket, buffer, strlen(buffer));
