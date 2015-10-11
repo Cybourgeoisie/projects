@@ -22,25 +22,6 @@
 
 using namespace std;
 
-// Define the port number to listen through
-const int PORT_NUMBER = 27890;
-
-// Define server limits
-const int MAX_CLIENTS = 4;
-const int BUFFER_SIZE = 1025; // Size given in bytes
-const int INCOMING_MESSAGE_SIZE = BUFFER_SIZE - 1;
-
-// Sockets
-int primary_socket;
-int client_sockets[MAX_CLIENTS];
-int max_client;
-
-// Socket descriptors used for select()
-fd_set socket_descriptors;
-
-// Handle the buffer
-char buffer[BUFFER_SIZE];
-
 // Client and file information
 struct FileItem {
 	unsigned int client_socket_id;
@@ -48,14 +29,42 @@ struct FileItem {
 	string hash;
 	unsigned int size;
 };
-vector<FileItem> file_list;
 
 
 /**
  * Public Methods
  */
 
-P2PServer::P2PServer() {}
+P2PServer::P2PServer()
+{
+	// Define the port number to listen through
+	PORT_NUMBER = 27890;
+
+	// Define server limits
+	MAX_CLIENTS = 4;
+	BUFFER_SIZE = 1025; // Size given in bytes
+	INCOMING_MESSAGE_SIZE = BUFFER_SIZE - 1;
+
+	// Keep track of the client sockets
+	client_sockets = new int[MAX_CLIENTS];
+
+	// Handle the buffer
+	buffer = new char[BUFFER_SIZE];
+
+	// Keep a list of the files
+	vector<FileItem> file_list;
+
+	// Default bind offset
+	number_bind_tries = 1;
+}
+
+void P2PServer::setBindMaxOffset(unsigned int max_offset)
+{
+	number_bind_tries = max_offset;
+}
+
+//void P2PServer::setBindPort(string address) {}
+//void P2PServer::setMaxClients(string address) {}
 
 void P2PServer::start()
 {
@@ -78,10 +87,23 @@ void P2PServer::initialize()
 	}
 }
 
-void P2PServer::openSocket()
+int P2PServer::bindToSocket(int socket, int offset)
 {
 	struct sockaddr_in server_address;
 
+	// Clear out the server_address memory space
+	memset((char *) &server_address, 0, sizeof(server_address));
+
+	// Configure the socket information
+	server_address.sin_family = AF_INET;
+	server_address.sin_addr.s_addr = INADDR_ANY;
+	server_address.sin_port = htons(PORT_NUMBER + offset);
+
+	return bind(socket, (struct sockaddr *) &server_address, sizeof(server_address));
+}
+
+void P2PServer::openSocket()
+{
 	// Create the socket - use SOCK_STREAM for TCP, SOCK_DGRAM for UDP
 	primary_socket = socket(AF_INET, SOCK_STREAM, 0);
 	if (primary_socket < 0)
@@ -98,19 +120,27 @@ void P2PServer::openSocket()
         exit(1);
     }
 
-	// Clear out the server_address memory space
-	memset((char *) &server_address, 0, sizeof(server_address));
-
-	// Configure the socket information
-	server_address.sin_family = AF_INET;
-	server_address.sin_addr.s_addr = INADDR_ANY;
-	server_address.sin_port = htons(PORT_NUMBER);
+    // Make sure that we're sending messages immediately
+	if (setsockopt(primary_socket, IPPROTO_TCP, TCP_NODELAY, (char *)&opt, sizeof(opt)) < 0)
+    {
+        perror("Error: could not use setsockopt to set 'TCP_NODELAY'");
+        exit(1);
+    }
 
 	// Bind the socket
-	if (bind(primary_socket, (struct sockaddr *) &server_address, sizeof(server_address)) < 0)
+	port_offset = 0;
+	int socket_status = -1;
+	while (socket_status < 0)
 	{
-		perror("Error: could not bind socket");
-		exit(1);
+		// Bind to the given socket
+		socket_status = this->bindToSocket(primary_socket, port_offset);
+
+		// Stop eventually, if we can't bind to any ports
+		if (socket_status < 0 && ++port_offset >= number_bind_tries)
+		{
+			perror("Fatal Error: Could not bind to any ports");
+			exit(1);
+		}
 	}
 
 	// Start listening on this port - second arg: max pending connections
@@ -120,7 +150,7 @@ void P2PServer::openSocket()
         exit(1);
     }
 
-	cout << "Listening on port " << PORT_NUMBER << endl;
+	cout << "Listening on port " << (PORT_NUMBER + port_offset) << endl;
 }
 
 void P2PServer::resetSocketDescriptors()
@@ -258,7 +288,8 @@ void P2PServer::handleRequest(int client_socket, char* buffer)
 
 	// Set the string terminating NULL byte on the end of the data read
 	buffer[strlen(buffer)] = '\0';
-	write(client_socket, buffer, strlen(buffer));
+	string test = "okay\0";
+	write(client_socket, test.c_str(), test.length());
 }
 
 void P2PServer::listenForClients()

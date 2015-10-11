@@ -9,6 +9,7 @@ int main(int argc, const char* argv[])
 
 	// Start up the server
 	P2PServer server;
+	server.setBindMaxOffset(1);
 	server.start();
 
 	return 0;
