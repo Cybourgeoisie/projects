@@ -5,22 +5,17 @@ class P2PClient
 {
 	private:
 		void initialize();
-		void connectToHost();
-		void sendMessageToHost(string);
-		void closeSocketToHost();
+
+		// UI Methods
 		bool runUI();
 		char showMenu();
 		void viewFiles();
 
 		// Thread worker functions
-		static void * startServerThread(void *);
+		static void * startActivityListenerThread(void *);
 
-		// Buffer
-		int BUFFER_SIZE;
-		int INCOMING_MESSAGE_SIZE;
-
-		// Define the port number to listen through
-		int PORT_NUMBER;
+		// Keep track of the peer node
+		P2PPeerNode node;
 		int server_socket;
 
 	public:

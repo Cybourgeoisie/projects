@@ -120,13 +120,6 @@ void P2PServer::openSocket()
         exit(1);
     }
 
-    // Make sure that we're sending messages immediately
-	if (setsockopt(primary_socket, IPPROTO_TCP, TCP_NODELAY, (char *)&opt, sizeof(opt)) < 0)
-    {
-        perror("Error: could not use setsockopt to set 'TCP_NODELAY'");
-        exit(1);
-    }
-
 	// Bind the socket
 	port_offset = 0;
 	int socket_status = -1;
@@ -279,6 +272,8 @@ void P2PServer::handleRequest(int client_socket, char* buffer)
 		cerr << "Request unknown: " << request << endl;
 	}
 
+	sleep(1);
+
 	// Push a new file to the list
 	/*FileItem file;
 	file.name = string(buffer);
@@ -288,8 +283,7 @@ void P2PServer::handleRequest(int client_socket, char* buffer)
 
 	// Set the string terminating NULL byte on the end of the data read
 	buffer[strlen(buffer)] = '\0';
-	string test = "okay\0";
-	write(client_socket, test.c_str(), test.length());
+	write(client_socket, buffer, strlen(buffer));
 }
 
 void P2PServer::listenForClients()
