@@ -7,9 +7,13 @@ class P2PClient
 		void initialize();
 
 		// UI Methods
+		void runProgram();
 		bool runUI();
 		char showMenu();
 		void viewFiles();
+
+		// UI Management
+		bool b_awaiting_response;
 
 		// Thread worker functions
 		static void * startActivityListenerThread(void *);

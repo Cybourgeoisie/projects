@@ -44,19 +44,15 @@ void P2PClient::start()
 
 	// Once we're connected, we'll want to bind the server listener
 	// Perform this as a separate thread
-	pthread_t peer_server_thread;
-	if (pthread_create(&peer_server_thread, NULL, &P2PClient::startActivityListenerThread, (void *)&node) != 0)
+	pthread_t node_thread;
+	if (pthread_create(&node_thread, NULL, &P2PClient::startActivityListenerThread, (void *)&node) != 0)
 	{
 		perror("Error: could not spawn peer listeners");
 		exit(1);
 	}
 
 	// Now open up the menu
-	bool b_program_active = true;
-	while (b_program_active)
-	{
-		b_program_active = runUI();
-	}
+	runProgram();
 }
 
 void * P2PClient::startActivityListenerThread(void * arg)
@@ -65,6 +61,35 @@ void * P2PClient::startActivityListenerThread(void * arg)
 	node = (P2PPeerNode *) arg;
 	node->listenForActivity();
 	pthread_exit(NULL);
+}
+
+void P2PClient::runProgram()
+{
+	bool b_program_active = true;
+	while (b_program_active)
+	{
+		if (b_awaiting_response && node.countQueueMessages() > 0)
+		{
+			// Get the oldest message
+			P2PMessage message = node.popQueueMessage();
+
+			// Show response
+			cout << message.message << endl;
+
+			if (node.countQueueMessages() <= 1)
+			{
+				b_awaiting_response = false;
+			}
+		}
+		else if (b_awaiting_response)
+		{
+			usleep(5000);
+		}
+		else
+		{
+			b_program_active = runUI();			
+		}
+	}
 }
 
 bool P2PClient::runUI()
@@ -77,6 +102,7 @@ bool P2PClient::runUI()
 			viewFiles();
 			break;
 		case 'a':
+			//addFiles();
 			break;
 		case 'd':
 			break;
@@ -103,9 +129,6 @@ char P2PClient::showMenu()
 	cout << "\t (p) View Download Progress" << endl;
 	cout << "\t (q) Quit" << endl;
 
-	cout << endl << "queue messages: " << node.countQueueMessages() << endl;
-	cout << "countSockets: " << node.countSockets() << endl;
-
 	// Take the client's order
 	char option;
 	cin >> option;
@@ -115,5 +138,6 @@ char P2PClient::showMenu()
 
 void P2PClient::viewFiles()
 {
+	b_awaiting_response = true;
 	node.sendMessageToSocket("list", server_socket);
 }

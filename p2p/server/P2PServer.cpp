@@ -2,7 +2,9 @@
  * Peer-to-peer server class
  */
 
-#include "P2PServer.hpp"
+#include "../node/P2PPeerNode.hpp"
+#include "../node/P2PPeerNode.cpp"
+#include "P2PServerNew.hpp"
 
 // Standard Library
 #include <stdio.h>
@@ -16,11 +18,13 @@
 // Network Includes
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/ioctl.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
 
-using namespace std;
+// Multithreading
+#include <pthread.h>
 
 // Client and file information
 struct FileItem {
@@ -30,231 +34,69 @@ struct FileItem {
 	unsigned int size;
 };
 
-
 /**
  * Public Methods
  */
 
-P2PServer::P2PServer()
-{
-	// Define the port number to listen through
-	PORT_NUMBER = 27890;
-
-	// Define server limits
-	MAX_CLIENTS = 4;
-	BUFFER_SIZE = 1025; // Size given in bytes
-	INCOMING_MESSAGE_SIZE = BUFFER_SIZE - 1;
-
-	// Keep track of the client sockets
-	client_sockets = new int[MAX_CLIENTS];
-
-	// Handle the buffer
-	buffer = new char[BUFFER_SIZE];
-
-	// Keep a list of the files
-	vector<FileItem> file_list;
-
-	// Default bind offset
-	number_bind_tries = 1;
-}
-
-void P2PServer::setBindMaxOffset(unsigned int max_offset)
-{
-	number_bind_tries = max_offset;
-}
-
-//void P2PServer::setBindPort(string address) {}
-//void P2PServer::setMaxClients(string address) {}
+P2PServer::P2PServer() {}
 
 void P2PServer::start()
 {
+	// Keep a list of the files
+	vector<FileItem> file_list;
+
 	// Open the socket and listen for connections
-	this->initialize();
-	this->openSocket();
-	this->listenForClients();
-}
+	node = P2PPeerNode();
+	node.setBindMaxOffset(1);
+	node.start();
 
-
-/**
- * Private Methods
- */
-void P2PServer::initialize()
-{
-	// Ensure that all client sockets are invalid to boot
-	for (int i = 0; i < MAX_CLIENTS; i++) 
+	// Once we're connected, we'll want to bind the server listener
+	// Perform this as a separate thread
+	pthread_t node_thread;
+	if (pthread_create(&node_thread, NULL, &P2PServer::startActivityListenerThread, (void *)&node) != 0)
 	{
-		client_sockets[i] = 0;
-	}
-}
-
-int P2PServer::bindToSocket(int socket, int offset)
-{
-	struct sockaddr_in server_address;
-
-	// Clear out the server_address memory space
-	memset((char *) &server_address, 0, sizeof(server_address));
-
-	// Configure the socket information
-	server_address.sin_family = AF_INET;
-	server_address.sin_addr.s_addr = INADDR_ANY;
-	server_address.sin_port = htons(PORT_NUMBER + offset);
-
-	return bind(socket, (struct sockaddr *) &server_address, sizeof(server_address));
-}
-
-void P2PServer::openSocket()
-{
-	// Create the socket - use SOCK_STREAM for TCP, SOCK_DGRAM for UDP
-	primary_socket = socket(AF_INET, SOCK_STREAM, 0);
-	if (primary_socket < 0)
-	{
-		perror("Error: could not open socket");
+		perror("Error: could not spawn peer listeners");
 		exit(1);
 	}
 
-	// Avoid the annoying "Address already in use" messages that the program causes
-	int opt = 1;
-	if (setsockopt(primary_socket, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(opt)) < 0)
-    {
-        perror("Error: could not use setsockopt to set 'SO_REUSEADDR'");
-        exit(1);
-    }
-
-	// Bind the socket
-	port_offset = 0;
-	int socket_status = -1;
-	while (socket_status < 0)
-	{
-		// Bind to the given socket
-		socket_status = this->bindToSocket(primary_socket, port_offset);
-
-		// Stop eventually, if we can't bind to any ports
-		if (socket_status < 0 && ++port_offset >= number_bind_tries)
-		{
-			perror("Fatal Error: Could not bind to any ports");
-			exit(1);
-		}
-	}
-
-	// Start listening on this port - second arg: max pending connections
-	if (listen(primary_socket, MAX_CLIENTS) < 0)
-    {
-        perror("Error: could not listen on port");
-        exit(1);
-    }
-
-	cout << "Listening on port " << (PORT_NUMBER + port_offset) << endl;
+	// Now open up the menu
+	runProgram();
 }
 
-void P2PServer::resetSocketDescriptors()
+void * P2PServer::startActivityListenerThread(void * arg)
 {
-	// Reset the current socket descriptors
-	FD_ZERO(&socket_descriptors);
-	FD_SET(primary_socket, &socket_descriptors);
-
-	// Keep track of the maximum socket descriptor for select()
-	max_client = primary_socket;
-	 
-	//add child sockets to set
-	for (int i = 0; i < MAX_CLIENTS; i++)
-	{
-		// Validate the socket
-		if (client_sockets[i] <= 0) continue;
-
-		// Add socket to set
-		FD_SET(client_sockets[i], &socket_descriptors);
-
-		// Update the maximum socket descriptor
-		max_client = max(max_client, client_sockets[i]);
-	}
+	P2PPeerNode * node;
+	node = (P2PPeerNode *) arg;
+	node->listenForActivity();
+	pthread_exit(NULL);
 }
 
-void P2PServer::handleNewConnection()
+void P2PServer::runProgram()
 {
-	// Prepare the client address
-	struct sockaddr_in client_address;
-	socklen_t client_address_length = sizeof(client_address);
-
-	// Accept a new socket
-	int new_socket = accept(primary_socket, (struct sockaddr *)&client_address, &client_address_length);
-
-	// Validate the new socket
-	if (new_socket < 0)
+	bool b_program_active = true;
+	while (b_program_active)
 	{
-		perror("Error: failure to accept new socket");
-		exit(1);
-	}
-
-	// Report new connection
-	cout << "New Connection Request: " << inet_ntoa(client_address.sin_addr) << ":" << ntohs(client_address.sin_port) << endl;
-
-	// Add socket to open slot
-	for (int i = 0; i <= MAX_CLIENTS; i++) 
-	{
-		// If we reach the maximum number of clients, we've gone too far
-		// Can't accept a new connection!
-		if (i == MAX_CLIENTS)
+		if (node.countQueueMessages() > 0)
 		{
-			// Report connection denied
-			cout << "Reached maximum number of clients, denied connection request" << endl;
+			// Get the oldest message
+			P2PMessage message = node.popQueueMessage();
 
-			// Send refusal message to socket
-			string message = "Server is too busy, please try again later\r\n";
-			write(new_socket, message.c_str(), message.length());
-
-			close(new_socket);
-			break;
-		}
-
-		// Skip all valid client sockets
-		if (client_sockets[i] != 0) continue;
-
-		// Add new socket
-		client_sockets[i] = new_socket;
-		break;
-	}
-}
-
-void P2PServer::handleExistingConnections()
-{
-	// Prepare the client address
-	struct sockaddr_in client_address;
-	socklen_t client_address_length = sizeof(client_address);
-
-	// Iterate over all clients
-	for (int i = 0; i < MAX_CLIENTS; i++) 
-	{
-		if (!FD_ISSET(client_sockets[i], &socket_descriptors)) continue;
-
-		// Clear out the buffer
-		memset(&buffer[0], 0, sizeof(buffer));
-
-		// Read the incoming message into the buffer
-		int message_size = read(client_sockets[i], buffer, INCOMING_MESSAGE_SIZE);
-
-		// Handle a closed connection
-		if (message_size == 0)
-		{
-			// Report the disconnection
-			getpeername(client_sockets[i], (struct sockaddr*)&client_address, &client_address_length);
-			cout << "Connection closed: " << inet_ntoa(client_address.sin_addr) << ":" << ntohs(client_address.sin_port) << endl;
-
-			// Close and free the socket
-			close(client_sockets[i]);
-			client_sockets[i] = 0;
+			// Handle message
+			handleRequest(message.socket_id, message.message);
 		}
 		else
 		{
-			this->handleRequest(client_sockets[i], buffer);
+			usleep(5000);
 		}
 	}
 }
 
-void P2PServer::handleRequest(int client_socket, char* buffer)
+void P2PServer::handleRequest(int socket, string request)
 {
-	string request = string(buffer);
+	// Remove spaces from the request
 	request.erase(remove_if(request.begin(), request.end(), ::isspace), request.end());
 
+	// Parse the request for a matching command
 	if (request.compare("register") == 0)
 	{
 		cerr << "Registering files" << endl;
@@ -262,6 +104,9 @@ void P2PServer::handleRequest(int client_socket, char* buffer)
 	else if (request.compare("list") == 0)
 	{
 		cerr << "Listing files" << endl;
+
+		string longstring = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc faucibus ultricies elementum. Vestibulum commodo vulputate fermentum. Vestibulum dignissim lectus quis diam mollis tristique. Donec ultrices magna vel sem ullamcorper malesuada. Morbi justo lorem, maximus eu fringilla sit amet, mollis eleifend dui. Curabitur ligula arcu, posuere quis nulla quis, fermentum tempus erat. Curabitur pharetra est a mattis condimentum. Fusce tempor nulla eu sem vulputate rhoncus eu bibendum risus. Sed erat lorem, fringilla vel lorem dapibus, tristique auctor eros. Vestibulum in rutrum arcu. Vivamus vel arcu sed metus sodales viverra ac id velit. Sed semper iaculis risus ut dignissim. Donec in metus diam. Etiam ac ante urna. Quisque vel magna luctus, consequat odio ut, tempor mi. \r\n Vivamus pretium leo nec sollicitudin pharetra. Phasellus tristique vel elit ac sollicitudin. Sed vitae vestibulum arcu. Nunc consectetur ex sit amet justo imperdiet malesuada nec ut sem. Aliquam erat volutpat. In hac habitasse platea dictumst. Ut eget justo non sem cursus vehicula. Etiam accumsan metus non turpis tempor, vitae semper nulla suscipit. Curabitur laoreet pretium est, et rhoncus justo vulputate at. Duis varius mi at sem viverra vestibulum. Sed et varius massa. Maecenas nec euismod magna, malesuada elementum magna. Mauris ut sem eleifend, porttitor nisi vitae, consectetur urna. \r\n Ut laoreet lectus mauris, ac vehicula nulla aliquet a. Pellentesque dapibus enim at arcu euismod dictum. Nunc fermentum nisl non nunc fringilla euismod. Donec rutrum metus id diam cursus, non auctor diam iaculis. Fusce rutrum quam eget dui sollicitudin, vulputate congue diam mollis. Duis ut leo id nulla ullamcorper fermentum. Ut sit amet lacus eget est rhoncus maximus et vel metus. Praesent ut pretium mauris, sit amet lacinia nisi. Sed vel scelerisque libero. Donec massa leo, rhoncus sed auctor non, euismod suscipit mauris. Sed pretium luctus vehicula. Integer ante sapien, feugiat vel luctus in, finibus et eros. Morbi iaculis, mauris in elementum tempor, mauris mauris scelerisque ligula, sed vulputate ipsum lacus eget dui. Nulla vitae feugiat lacus, eu volutpat nisi. Nulla tempor nunc vestibulum lectus vulputate, ut interdum est consectetur. \r\n In at nibh efficitur, malesuada magna eget, scelerisque dolor. Nullam euismod elit dapibus sapien dictum, nec rhoncus erat luctus. Etiam vel feugiat massa. In leo orci, scelerisque vitae justo id, porttitor efficitur lorem. Nullam nec nunc congue, porttitor felis nec, egestas justo. Pellentesque lobortis, metus vitae tempor vehicula, ante odio efficitur sapien, nec tincidunt sapien quam at lorem. Donec vestibulum ligula eu convallis suscipit. \r\n Nunc dictum laoreet diam et facilisis. Pellentesque auctor tellus id risus ultrices semper. Donec venenatis quam sit amet lobortis tincidunt. Quisque aliquam volutpat nibh. Mauris pharetra eleifend quam vitae tincidunt. In leo ex, vehicula at dolor in, condimentum blandit lorem. Nulla lacinia elit id viverra viverra. Vivamus non arcu consectetur, varius arcu eu, dictum erat. Vivamus sapien purus, congue id tincidunt vitae, feugiat sed enim. Pellentesque ut tellus et odio luctus efficitur ut eget lorem. Phasellus vel massa eget sem pellentesque hendrerit non id odio. Curabitur cursus sagittis ex, ut euismod ex rutrum nec. Nulla pharetra id sapien eget egestas. Donec sed volutpat magna. \r\n Aenean rutrum metus urna, non tincidunt ex sollicitudin a. Etiam quis ultricies magna, nec tristique lacus. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Integer semper elit sed vulputate hendrerit. Donec iaculis metus iaculis augue efficitur, non tempus leo malesuada. Sed vulputate eu erat mollis molestie. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum lacinia posuere eros in tincidunt. \r\n Aliquam erat volutpat. Cras dignissim fermentum ante, ut accumsan enim pellentesque tempor. Sed luctus mi in nulla placerat, ut cursus velit luctus. Mauris iaculis sapien leo. Curabitur venenatis elit nulla, at posuere turpis molestie vitae. Suspendisse interdum odio ac sapien egestas, vel consectetur arcu consequat. Nunc cursus ultrices justo eu volutpat. Sed egestas volutpat.";
+		write(socket, longstring.c_str(), longstring.length());
 	}
 	else if (request.compare("get") == 0)
 	{
@@ -270,46 +115,5 @@ void P2PServer::handleRequest(int client_socket, char* buffer)
 	else
 	{
 		cerr << "Request unknown: " << request << endl;
-	}
-
-	sleep(1);
-
-	// Push a new file to the list
-	/*FileItem file;
-	file.name = string(buffer);
-	file_list.push_back(file);
-
-	cerr << "File list: " << file_list[0].name << endl;*/
-
-	// Set the string terminating NULL byte on the end of the data read
-	buffer[strlen(buffer)] = '\0';
-	write(client_socket, buffer, strlen(buffer));
-}
-
-void P2PServer::listenForClients()
-{
-	while (true) 
-	{
-		// Ready the socket descriptors
-		this->resetSocketDescriptors();
-  
-		// Wait for activity
-		int activity = select(max_client + 1, &socket_descriptors, NULL, NULL, NULL);
-
-		// Validate the activity
-		if ((activity < 0) && (errno!=EINTR))
-		{
-			perror("Error: select failed");
-			exit(1);
-		}
-
-		// Anything on the primary socket is a new connection
-		if (FD_ISSET(primary_socket, &socket_descriptors))
-		{
-			this->handleNewConnection();
-		}
-		  
-		// Perform any open activities on all other clients
-		this->handleExistingConnections();
 	}
 }

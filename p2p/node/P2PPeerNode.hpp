@@ -15,7 +15,6 @@ using namespace std;
 struct P2PSocket {
 	unsigned int socket_id;
 	string type;
-	string handler;
 	string name;
 };
 
@@ -80,7 +79,8 @@ class P2PPeerNode
 		void sendMessageToSocket(string, int);
 
 		// Interact with message queue
-		int  countQueueMessages();
+		P2PMessage popQueueMessage();
+		int countQueueMessages();
 };
 
 #endif

@@ -112,7 +112,6 @@ void P2PPeerNode::openPrimarySocket()
     P2PSocket a_socket;
 	a_socket.socket_id = primary_socket;
 	a_socket.type = "primary";
-	a_socket.handler = "primary";
 	socket_vector.push_back(a_socket);
 
 	cout << "Listening on port " << (PORT_NUMBER + port_offset) << endl;
@@ -195,7 +194,6 @@ int P2PPeerNode::makeConnection(string host, int port)
 		P2PSocket a_socket;
 		a_socket.socket_id = new_socket;
 		a_socket.type = "server";
-		a_socket.handler = "message";
 		a_socket.name = "";
 		socket_vector.push_back(a_socket);
 
@@ -280,7 +278,6 @@ void P2PPeerNode::handleNewConnectionRequest()
 		P2PSocket a_socket;
 		a_socket.socket_id = new_socket;
 		a_socket.type = "client";
-		a_socket.handler = "client";
 		a_socket.name = "";
 		socket_vector.push_back(a_socket);
 
@@ -336,13 +333,13 @@ void P2PPeerNode::handleExistingConnections()
 			{
 				if (iter->socket_id == sockets[i])
 				{
-					if (iter->handler.compare("message") == 0)
+					if (iter->type.compare("server") == 0)
 					{
 						this->enqueueMessage(sockets[i], buffer);
 					}
-					else if (iter->handler.compare("client") == 0)
+					else if (iter->type.compare("client") == 0)
 					{
-						this->handleRequest(sockets[i], buffer);
+						this->enqueueMessage(sockets[i], buffer);
 					}
 				}
 			}
@@ -413,36 +410,17 @@ int P2PPeerNode::countQueueMessages()
 	return message_queue.size();
 }
 
-void P2PPeerNode::handleRequest(int client_socket, char* buffer)
+P2PMessage P2PPeerNode::popQueueMessage()
 {
-	string request = string(buffer);
-	request.erase(remove_if(request.begin(), request.end(), ::isspace), request.end());
-
-	if (request.compare("register") == 0)
+	// Validation
+	if (message_queue.size() <= 0)
 	{
-		cerr << "Registering files" << endl;
-	}
-	else if (request.compare("list") == 0)
-	{
-		cerr << "Listing files" << endl;
-	}
-	else if (request.compare("get") == 0)
-	{
-		cerr << "Getting file" << endl;
-	}
-	else
-	{
-		cerr << "Request unknown: " << request << endl;
+		perror("Error: can't pop a message from an empty queue");
+		exit(1);
 	}
 
-	// Push a new file to the list
-	/*FileItem file;
-	file.name = string(buffer);
-	file_list.push_back(file);
-
-	cerr << "File list: " << file_list[0].name << endl;*/
-
-	// Set the string terminating NULL byte on the end of the data read
-	buffer[strlen(buffer)] = '\0';
-	write(client_socket, buffer, strlen(buffer));
+	// Return a message
+	P2PMessage message = message_queue[0];
+	message_queue.erase(message_queue.begin());
+	return message;
 }
