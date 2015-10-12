@@ -4,7 +4,7 @@
 
 #include "../node/P2PPeerNode.hpp"
 #include "../node/P2PPeerNode.cpp"
-#include "P2PServerNew.hpp"
+#include "P2PServer.hpp"
 
 // Standard Library
 #include <stdio.h>
@@ -14,6 +14,7 @@
 #include <errno.h>
 #include <vector>
 #include <algorithm>
+#include <sstream>
 
 // Network Includes
 #include <sys/types.h>
@@ -26,14 +27,6 @@
 // Multithreading
 #include <pthread.h>
 
-// Client and file information
-struct FileItem {
-	unsigned int client_socket_id;
-	string name;
-	string hash;
-	unsigned int size;
-};
-
 /**
  * Public Methods
  */
@@ -42,9 +35,6 @@ P2PServer::P2PServer() {}
 
 void P2PServer::start()
 {
-	// Keep a list of the files
-	vector<FileItem> file_list;
-
 	// Open the socket and listen for connections
 	node = P2PPeerNode();
 	node.setBindMaxOffset(1);
@@ -76,6 +66,13 @@ void P2PServer::runProgram()
 	bool b_program_active = true;
 	while (b_program_active)
 	{
+		// Handle updates
+		if (active_sockets.size() != node.countSockets())
+		{
+			// Update socket-dependent logic
+			updateFileList();
+		}
+
 		if (node.countQueueMessages() > 0)
 		{
 			// Get the oldest message
@@ -91,22 +88,72 @@ void P2PServer::runProgram()
 	}
 }
 
-void P2PServer::handleRequest(int socket, string request)
+void P2PServer::updateFileList()
+{
+	vector<P2PSocket> sockets = node.getSockets();
+
+	bool b_socket_found;
+	vector<FileItem>::iterator file_iter;
+	vector<P2PSocket>::iterator sock_iter;
+
+	for (file_iter = file_list.begin(); file_iter < file_list.end(); )
+	{
+		b_socket_found = false;
+
+		for (sock_iter = sockets.begin(); sock_iter < sockets.end(); sock_iter++)
+		{
+			if ((*sock_iter).socket_id == (*file_iter).socket_id)
+			{
+				b_socket_found = true;
+				break;
+			}
+		}
+
+		if (b_socket_found)
+			file_iter++;
+		else
+			file_list.erase(file_iter);
+	}
+}
+
+vector<string> P2PServer::parseRequest(string request)
 {
 	// Remove spaces from the request
-	request.erase(remove_if(request.begin(), request.end(), ::isspace), request.end());
+	stringstream ss(request);
+	vector<string> request_parsed;
+
+	if (request.length() > 0)
+	{
+		string line;
+		while (getline(ss, line, '\n'))
+		{
+			line.erase(line.find_last_not_of(" \n\r\t")+1);
+			request_parsed.push_back(line);
+		}
+	}
+
+	return request_parsed;
+}
+
+void P2PServer::handleRequest(int socket, string request)
+{
+	// Parse the request
+	vector<string> request_parsed = parseRequest(request);	
 
 	// Parse the request for a matching command
-	if (request.compare("register") == 0)
+	if (request_parsed[0].compare("addFiles") == 0)
 	{
-		cerr << "Registering files" << endl;
+		cerr << "Adding files" << endl;
+
+		string message = addFiles(socket, request_parsed);
+		write(socket, message.c_str(), message.length());
 	}
-	else if (request.compare("list") == 0)
+	else if (request_parsed[0].compare("list") == 0)
 	{
 		cerr << "Listing files" << endl;
 
-		string longstring = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc faucibus ultricies elementum. Vestibulum commodo vulputate fermentum. Vestibulum dignissim lectus quis diam mollis tristique. Donec ultrices magna vel sem ullamcorper malesuada. Morbi justo lorem, maximus eu fringilla sit amet, mollis eleifend dui. Curabitur ligula arcu, posuere quis nulla quis, fermentum tempus erat. Curabitur pharetra est a mattis condimentum. Fusce tempor nulla eu sem vulputate rhoncus eu bibendum risus. Sed erat lorem, fringilla vel lorem dapibus, tristique auctor eros. Vestibulum in rutrum arcu. Vivamus vel arcu sed metus sodales viverra ac id velit. Sed semper iaculis risus ut dignissim. Donec in metus diam. Etiam ac ante urna. Quisque vel magna luctus, consequat odio ut, tempor mi. \r\n Vivamus pretium leo nec sollicitudin pharetra. Phasellus tristique vel elit ac sollicitudin. Sed vitae vestibulum arcu. Nunc consectetur ex sit amet justo imperdiet malesuada nec ut sem. Aliquam erat volutpat. In hac habitasse platea dictumst. Ut eget justo non sem cursus vehicula. Etiam accumsan metus non turpis tempor, vitae semper nulla suscipit. Curabitur laoreet pretium est, et rhoncus justo vulputate at. Duis varius mi at sem viverra vestibulum. Sed et varius massa. Maecenas nec euismod magna, malesuada elementum magna. Mauris ut sem eleifend, porttitor nisi vitae, consectetur urna. \r\n Ut laoreet lectus mauris, ac vehicula nulla aliquet a. Pellentesque dapibus enim at arcu euismod dictum. Nunc fermentum nisl non nunc fringilla euismod. Donec rutrum metus id diam cursus, non auctor diam iaculis. Fusce rutrum quam eget dui sollicitudin, vulputate congue diam mollis. Duis ut leo id nulla ullamcorper fermentum. Ut sit amet lacus eget est rhoncus maximus et vel metus. Praesent ut pretium mauris, sit amet lacinia nisi. Sed vel scelerisque libero. Donec massa leo, rhoncus sed auctor non, euismod suscipit mauris. Sed pretium luctus vehicula. Integer ante sapien, feugiat vel luctus in, finibus et eros. Morbi iaculis, mauris in elementum tempor, mauris mauris scelerisque ligula, sed vulputate ipsum lacus eget dui. Nulla vitae feugiat lacus, eu volutpat nisi. Nulla tempor nunc vestibulum lectus vulputate, ut interdum est consectetur. \r\n In at nibh efficitur, malesuada magna eget, scelerisque dolor. Nullam euismod elit dapibus sapien dictum, nec rhoncus erat luctus. Etiam vel feugiat massa. In leo orci, scelerisque vitae justo id, porttitor efficitur lorem. Nullam nec nunc congue, porttitor felis nec, egestas justo. Pellentesque lobortis, metus vitae tempor vehicula, ante odio efficitur sapien, nec tincidunt sapien quam at lorem. Donec vestibulum ligula eu convallis suscipit. \r\n Nunc dictum laoreet diam et facilisis. Pellentesque auctor tellus id risus ultrices semper. Donec venenatis quam sit amet lobortis tincidunt. Quisque aliquam volutpat nibh. Mauris pharetra eleifend quam vitae tincidunt. In leo ex, vehicula at dolor in, condimentum blandit lorem. Nulla lacinia elit id viverra viverra. Vivamus non arcu consectetur, varius arcu eu, dictum erat. Vivamus sapien purus, congue id tincidunt vitae, feugiat sed enim. Pellentesque ut tellus et odio luctus efficitur ut eget lorem. Phasellus vel massa eget sem pellentesque hendrerit non id odio. Curabitur cursus sagittis ex, ut euismod ex rutrum nec. Nulla pharetra id sapien eget egestas. Donec sed volutpat magna. \r\n Aenean rutrum metus urna, non tincidunt ex sollicitudin a. Etiam quis ultricies magna, nec tristique lacus. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Integer semper elit sed vulputate hendrerit. Donec iaculis metus iaculis augue efficitur, non tempus leo malesuada. Sed vulputate eu erat mollis molestie. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum lacinia posuere eros in tincidunt. \r\n Aliquam erat volutpat. Cras dignissim fermentum ante, ut accumsan enim pellentesque tempor. Sed luctus mi in nulla placerat, ut cursus velit luctus. Mauris iaculis sapien leo. Curabitur venenatis elit nulla, at posuere turpis molestie vitae. Suspendisse interdum odio ac sapien egestas, vel consectetur arcu consequat. Nunc cursus ultrices justo eu volutpat. Sed egestas volutpat.";
-		write(socket, longstring.c_str(), longstring.length());
+		string files = listFiles();
+		write(socket, files.c_str(), files.length());
 	}
 	else if (request.compare("get") == 0)
 	{
@@ -117,3 +164,41 @@ void P2PServer::handleRequest(int socket, string request)
 		cerr << "Request unknown: " << request << endl;
 	}
 }
+
+string P2PServer::addFiles(int socket, vector<string> files)
+{
+	int i = 0;
+	vector<string>::iterator iter;
+	for (iter = files.begin() + 1; iter < files.end(); iter++)
+	{
+		i++;
+
+		FileItem file_item;
+		file_item.name = *iter;
+		file_item.socket_id = socket;
+
+		file_list.push_back(file_item);
+	}
+
+	return to_string(i) + " files successfully added to file listing.";
+}
+
+string P2PServer::listFiles()
+{
+	if (file_list.size() == 0)
+	{
+		return "\r\nThere are currently no files stored on the server.\r\n";
+	}
+
+	int i = 0;
+	string files_message = "\r\nFile Listing:\r\n";
+
+	vector<FileItem>::iterator iter;
+	for (iter = file_list.begin(); iter < file_list.end(); iter++)
+	{
+		files_message += "\t" + to_string(++i) + ") " + (*iter).name + "\r\n";
+	}
+
+	return files_message;
+}
+

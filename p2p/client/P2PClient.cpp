@@ -68,7 +68,7 @@ void P2PClient::runProgram()
 	bool b_program_active = true;
 	while (b_program_active)
 	{
-		if (b_awaiting_response && node.countQueueMessages() > 0)
+		if (node.countQueueMessages() > 0)
 		{
 			// Get the oldest message
 			P2PMessage message = node.popQueueMessage();
@@ -76,10 +76,14 @@ void P2PClient::runProgram()
 			// Show response
 			cout << message.message << endl;
 
-			if (node.countQueueMessages() <= 1)
+			// If we think we've got everything, wait to be certain
+			if (node.countQueueMessages() == 0 && b_awaiting_response)
 			{
-				b_awaiting_response = false;
+				usleep(50000);
 			}
+
+			// Determine if we've gotten the full response
+			b_awaiting_response = (node.countQueueMessages() > 0);
 		}
 		else if (b_awaiting_response)
 		{
@@ -102,7 +106,7 @@ bool P2PClient::runUI()
 			viewFiles();
 			break;
 		case 'a':
-			//addFiles();
+			selectFiles();
 			break;
 		case 'd':
 			break;
@@ -130,10 +134,11 @@ char P2PClient::showMenu()
 	cout << "\t (q) Quit" << endl;
 
 	// Take the client's order
-	char option;
-	cin >> option;
+	string option;
+	getline(cin, option, '\n');
 
-	return option;
+	// Cast to a char
+	return option[0];
 }
 
 void P2PClient::viewFiles()
@@ -141,3 +146,47 @@ void P2PClient::viewFiles()
 	b_awaiting_response = true;
 	node.sendMessageToSocket("list", server_socket);
 }
+
+bool isLineBreak(char c) { return isspace(c) && !isblank(c); }
+
+void P2PClient::selectFiles()
+{
+	cout << endl;
+	cout << "Please enter the locations of the folders or files you'd like to add." << endl;
+	cout << "List each item on its own line, separated by a new line." << endl;
+	cout << "When you are finished, hit Enter / Return:" << endl << endl;
+
+	vector<string> files;
+	string location;
+
+	do
+	{
+		getline(cin, location, '\n');
+		location.erase(remove_if(location.begin(), location.end(), isLineBreak), location.end());
+
+		if (location.length() > 0)
+			files.push_back(location);
+	}
+	while (location.length() > 0);
+
+	// Beam the files up
+	addFiles(files);
+}
+
+void P2PClient::addFiles(vector<string> files)
+{
+	b_awaiting_response = true;
+	string add_files_message = "addFiles\r\n";
+
+	// Send the files one by one
+	vector<string>::iterator iter;
+	for (iter = files.begin(); iter < files.end(); iter++)
+	{
+		add_files_message += *iter + "\r\n";
+	}
+
+	node.sendMessageToSocket(add_files_message, server_socket);
+}
+
+
+

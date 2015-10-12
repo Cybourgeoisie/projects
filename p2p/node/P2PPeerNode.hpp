@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <vector>
 #include <algorithm>
+#include <sys/time.h>
 
 using namespace std;
 
@@ -74,6 +75,7 @@ class P2PPeerNode
 		// Add new connections
 		int makeConnection(string, int);
 		int countSockets();
+		vector<P2PSocket> getSockets();
 
 		// Send message to socket
 		void sendMessageToSocket(string, int);

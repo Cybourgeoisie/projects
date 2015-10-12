@@ -33,6 +33,12 @@ P2PPeerNode::P2PPeerNode()
 
 	// Default bind offset
 	number_bind_tries = 1;
+
+	// Keep track of the last update to the sockets
+	timeval curTime;
+	gettimeofday(&curTime, NULL);
+	int milli = curTime.tv_usec;
+	cout << curTime.tv_sec << " - " << curTime.tv_usec;
 }
 
 void P2PPeerNode::setBindMaxOffset(unsigned int max_offset)
@@ -297,7 +303,7 @@ void P2PPeerNode::handleExistingConnections()
 		if (!FD_ISSET(sockets[i], &socket_descriptors)) continue;
 
 		// Clear out the buffer
-		memset(&buffer[0], 0, sizeof(buffer));
+		memset(&buffer[0], 0, BUFFER_SIZE);
 
 		// Read the incoming message into the buffer
 		int message_size = read(sockets[i], buffer, INCOMING_MESSAGE_SIZE);
@@ -403,6 +409,11 @@ void P2PPeerNode::enqueueMessage(int client_socket, char* buffer)
 int P2PPeerNode::countSockets()
 {
 	return socket_vector.size();
+}
+
+vector<P2PSocket> P2PPeerNode::getSockets()
+{
+	return socket_vector;
 }
 
 int P2PPeerNode::countQueueMessages()

@@ -1,6 +1,11 @@
 #ifndef P2PCLIENT_H
 #define P2PCLIENT_H
 
+// Standard Library
+#include <vector>
+
+using namespace std;
+
 class P2PClient
 {
 	private:
@@ -11,6 +16,8 @@ class P2PClient
 		bool runUI();
 		char showMenu();
 		void viewFiles();
+		void selectFiles();
+		void addFiles(vector<string>);
 
 		// UI Management
 		bool b_awaiting_response;
