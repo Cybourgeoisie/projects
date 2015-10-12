@@ -6,26 +6,6 @@
 #include "../node/P2PPeerNode.cpp"
 #include "P2PClient.hpp"
 
-// Standard Library
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <errno.h>
-#include <vector>
-#include <algorithm>
-
-// Network Includes
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/ioctl.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <netdb.h>
-
-// Multithreading
-#include <pthread.h>
-
 using namespace std;
 
 /**
@@ -169,20 +149,102 @@ void P2PClient::selectFiles()
 	}
 	while (location.length() > 0);
 
+	// Filter and collect files
+	vector<FileItem> file_list;
+	file_list = collectFiles(files);
+	if (file_list.size() == 0)
+	{
+		cout << "No files were added. Check the locations of your files and folders before submitting." << endl;
+		return;
+	}
+
 	// Beam the files up
-	addFiles(files);
+	sendFiles(file_list);
 }
 
-void P2PClient::addFiles(vector<string> files)
+vector<FileItem> P2PClient::collectFiles(vector<string> files)
+{
+	// For each item, if it's a folder, get all files in that folder
+	// If it's a file, add it directly
+	// If the item isn't found, drop it
+	vector<FileItem> clean_files;
+	vector<string>::iterator iter;
+	struct stat s;
+
+	for (iter = files.begin(); iter < files.end(); iter++)
+	{
+		if (stat((*iter).c_str(), &s) == 0)
+		{
+			if (s.st_mode & S_IFDIR)
+			{
+				// Add all files in the directory
+				DIR *directory;
+				struct dirent *ep;
+
+				// Open the directory
+				directory = opendir((*iter).c_str());
+				if (directory != NULL)
+				{
+					// Collect all files
+					while ((ep = readdir(directory)) != NULL)
+					{
+						string file_path = (*iter) + "/" + string(ep->d_name);
+						if (stat(file_path.c_str(), &s) == 0 && (s.st_mode & S_IFREG))
+						{
+							// Get the absolute path
+							char *real_path = realpath(file_path.c_str(), NULL);
+
+							FileItem file_item;
+							file_item.name = ep->d_name;
+							file_item.size = s.st_size;
+							file_item.path = string(real_path);
+							clean_files.push_back(file_item);
+
+							// Notify user
+							cout << "Adding file: " << real_path << endl;
+							free(real_path);
+						}
+					}
+
+					// Close the directory
+					closedir(directory);
+				}
+			}
+			else if (s.st_mode & S_IFREG)
+			{
+				// Get the absolute path
+				char *real_path = realpath((*iter).c_str(), NULL);
+				
+				FileItem file_item;
+				file_item.name = (*iter);
+				file_item.size = s.st_size;
+				file_item.path = string(real_path);
+				clean_files.push_back(file_item);
+
+				// Notify user
+				cout << "Adding file: " << real_path << endl;
+				free(real_path);
+			}
+		}
+		else
+		{
+			cout << "Could not find file or folder: " << (*iter) << endl;
+		}
+	}
+
+	return clean_files;
+}
+
+void P2PClient::sendFiles(vector<FileItem> files)
 {
 	b_awaiting_response = true;
 	string add_files_message = "addFiles\r\n";
 
-	// Send the files one by one
-	vector<string>::iterator iter;
+	// Separate each file with newlines
+	vector<FileItem>::iterator iter;
 	for (iter = files.begin(); iter < files.end(); iter++)
 	{
-		add_files_message += *iter + "\r\n";
+		add_files_message += (*iter).name + "\t" + to_string((*iter).size) + "\r\n";
 	}
 
 	node.sendMessageToSocket(add_files_message, server_socket);

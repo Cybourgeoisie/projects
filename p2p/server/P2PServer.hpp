@@ -1,14 +1,9 @@
 #ifndef P2PSERVER_H
 #define P2PSERVER_H
 
-using namespace std;
+#include "../common/P2PCommon.hpp"
 
-struct FileItem {
-	unsigned int socket_id;
-	string name;
-	string hash;
-	unsigned int size;
-};
+using namespace std;
 
 class P2PServer
 {
@@ -20,6 +15,7 @@ class P2PServer
 		string addFiles(int, vector<string>);
 		string listFiles();
 		void updateFileList();
+		bool socketsModified();
 
 		// Server limits and port
 		int PORT_NUMBER;
@@ -32,7 +28,7 @@ class P2PServer
 
 		// Keep a list of the files and active clients
 		vector<FileItem> file_list;
-		vector<int> active_sockets;
+		timeval sockets_last_modified;
 
 	public:
 		P2PServer();

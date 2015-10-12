@@ -1,28 +1,9 @@
 #ifndef P2PPEERNODE_H
 #define P2PPEERNODE_H
 
-// Standard Library
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <errno.h>
-#include <vector>
-#include <algorithm>
-#include <sys/time.h>
+#include "../common/P2PCommon.hpp"
 
 using namespace std;
-
-struct P2PSocket {
-	unsigned int socket_id;
-	string type;
-	string name;
-};
-
-struct P2PMessage {
-	unsigned int socket_id;
-	string message;
-};
 
 class P2PPeerNode
 {
@@ -56,6 +37,9 @@ class P2PPeerNode
 		int * sockets;
 		int max_connection;
 
+		// Managing Sockets
+		timeval sockets_last_modified;
+
 		// Available sockets
 		vector<P2PSocket> socket_vector;
 
@@ -76,6 +60,7 @@ class P2PPeerNode
 		int makeConnection(string, int);
 		int countSockets();
 		vector<P2PSocket> getSockets();
+		timeval getSocketsLastModified();
 
 		// Send message to socket
 		void sendMessageToSocket(string, int);

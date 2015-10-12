@@ -6,27 +6,6 @@
 #include "../node/P2PPeerNode.cpp"
 #include "P2PServer.hpp"
 
-// Standard Library
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <errno.h>
-#include <vector>
-#include <algorithm>
-#include <sstream>
-
-// Network Includes
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/ioctl.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <netdb.h>
-
-// Multithreading
-#include <pthread.h>
-
 /**
  * Public Methods
  */
@@ -67,7 +46,7 @@ void P2PServer::runProgram()
 	while (b_program_active)
 	{
 		// Handle updates
-		if (active_sockets.size() != node.countSockets())
+		if (socketsModified())
 		{
 			// Update socket-dependent logic
 			updateFileList();
@@ -88,14 +67,24 @@ void P2PServer::runProgram()
 	}
 }
 
+bool P2PServer::socketsModified()
+{
+	timeval node_sockets_lm = node.getSocketsLastModified();
+	return (sockets_last_modified.tv_sec != node_sockets_lm.tv_sec || 
+			sockets_last_modified.tv_usec != node_sockets_lm.tv_usec);
+}
+
 void P2PServer::updateFileList()
 {
+	// Get all of the current sockets
 	vector<P2PSocket> sockets = node.getSockets();
 
+	// Prep work
 	bool b_socket_found;
 	vector<FileItem>::iterator file_iter;
 	vector<P2PSocket>::iterator sock_iter;
 
+	// For each file, ensure that the file's owner is online
 	for (file_iter = file_list.begin(); file_iter < file_list.end(); )
 	{
 		b_socket_found = false;
@@ -114,6 +103,9 @@ void P2PServer::updateFileList()
 		else
 			file_list.erase(file_iter);
 	}
+
+	// Update the last modified time
+	sockets_last_modified = node.getSocketsLastModified();
 }
 
 vector<string> P2PServer::parseRequest(string request)
@@ -173,8 +165,17 @@ string P2PServer::addFiles(int socket, vector<string> files)
 	{
 		i++;
 
+		std::stringstream line(*iter);
+		std::string segment;
+		std::vector<std::string> seglist;
+		while(std::getline(line, segment, '\t'))
+		{
+			seglist.push_back(segment);
+		}
+
 		FileItem file_item;
-		file_item.name = *iter;
+		file_item.name = seglist[0];
+		file_item.size = stoi(seglist[1]);
 		file_item.socket_id = socket;
 
 		file_list.push_back(file_item);
@@ -196,7 +197,7 @@ string P2PServer::listFiles()
 	vector<FileItem>::iterator iter;
 	for (iter = file_list.begin(); iter < file_list.end(); iter++)
 	{
-		files_message += "\t" + to_string(++i) + ") " + (*iter).name + "\r\n";
+		files_message += "\t" + to_string(++i) + ") " + (*iter).name + " - (" + to_string((*iter).size) + " B)" "\r\n";
 	}
 
 	return files_message;

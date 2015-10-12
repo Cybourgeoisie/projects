@@ -4,13 +4,6 @@
 
 #include "P2PPeerNode.hpp"
 
-// Network Includes
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <netdb.h>
-
 /**
  * Public Methods
  */
@@ -35,10 +28,7 @@ P2PPeerNode::P2PPeerNode()
 	number_bind_tries = 1;
 
 	// Keep track of the last update to the sockets
-	timeval curTime;
-	gettimeofday(&curTime, NULL);
-	int milli = curTime.tv_usec;
-	cout << curTime.tv_sec << " - " << curTime.tv_usec;
+	gettimeofday(&sockets_last_modified, NULL);
 }
 
 void P2PPeerNode::setBindMaxOffset(unsigned int max_offset)
@@ -119,6 +109,9 @@ void P2PPeerNode::openPrimarySocket()
 	a_socket.socket_id = primary_socket;
 	a_socket.type = "primary";
 	socket_vector.push_back(a_socket);
+
+	// Keep track of the last update to the sockets
+	gettimeofday(&sockets_last_modified, NULL);
 
 	cout << "Listening on port " << (PORT_NUMBER + port_offset) << endl;
 }
@@ -202,6 +195,9 @@ int P2PPeerNode::makeConnection(string host, int port)
 		a_socket.type = "server";
 		a_socket.name = "";
 		socket_vector.push_back(a_socket);
+
+		// Keep track of the last update to the sockets
+		gettimeofday(&sockets_last_modified, NULL);
 
 		break;
 	}
@@ -287,6 +283,9 @@ void P2PPeerNode::handleNewConnectionRequest()
 		a_socket.name = "";
 		socket_vector.push_back(a_socket);
 
+		// Keep track of the last update to the sockets
+		gettimeofday(&sockets_last_modified, NULL);
+
 		break;
 	}
 }
@@ -327,6 +326,9 @@ void P2PPeerNode::handleExistingConnections()
 				else
 					++iter;
 			}
+
+			// Keep track of the last update to the sockets
+			gettimeofday(&sockets_last_modified, NULL);
 
 			// Remove from the int array
 			sockets[i] = 0;
@@ -409,6 +411,11 @@ void P2PPeerNode::enqueueMessage(int client_socket, char* buffer)
 int P2PPeerNode::countSockets()
 {
 	return socket_vector.size();
+}
+
+timeval P2PPeerNode::getSocketsLastModified()
+{
+	return sockets_last_modified;
 }
 
 vector<P2PSocket> P2PPeerNode::getSockets()

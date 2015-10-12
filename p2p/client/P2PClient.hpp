@@ -1,8 +1,7 @@
 #ifndef P2PCLIENT_H
 #define P2PCLIENT_H
 
-// Standard Library
-#include <vector>
+#include "../common/P2PCommon.hpp"
 
 using namespace std;
 
@@ -17,7 +16,8 @@ class P2PClient
 		char showMenu();
 		void viewFiles();
 		void selectFiles();
-		void addFiles(vector<string>);
+		vector<FileItem> collectFiles(vector<string>);
+		void sendFiles(vector<FileItem>);
 
 		// UI Management
 		bool b_awaiting_response;
