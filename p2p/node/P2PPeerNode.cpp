@@ -100,12 +100,15 @@ void P2PPeerNode::openPrimarySocket()
 
 	// Start listening on this port - second arg: max pending connections
 	if (listen(primary_socket, MAX_CONNECTIONS) < 0)
-    {
-        perror("Error: could not listen on port");
-        exit(1);
-    }
+	{
+		perror("Error: could not listen on port");
+		exit(1);
+	}
 
-    P2PSocket a_socket;
+	// Set the public-facing port
+	public_port = PORT_NUMBER + port_offset;
+
+	P2PSocket a_socket;
 	a_socket.socket_id = primary_socket;
 	a_socket.type = "primary";
 	socket_vector.push_back(a_socket);
@@ -135,7 +138,7 @@ int P2PPeerNode::bindPrimarySocket(int socket, int offset)
 /**
  * Make a connection
  */
-int P2PPeerNode::makeConnection(string host, int port)
+int P2PPeerNode::makeConnection(string name, string host, int port)
 {
 	struct sockaddr_in server_address;
 	struct hostent * server;
@@ -145,7 +148,7 @@ int P2PPeerNode::makeConnection(string host, int port)
 	if (new_socket < 0)
 	{
 		perror("Error: could not open socket");
-		exit(1);
+		return -1;
 	}
 
 	// Find the server host
@@ -153,7 +156,7 @@ int P2PPeerNode::makeConnection(string host, int port)
 	if (server == NULL)
 	{
 		perror("Error: could not find the host");
-		exit(1);
+		return -1;
 	}
 
 	// Clear out the server_address memory space
@@ -168,7 +171,7 @@ int P2PPeerNode::makeConnection(string host, int port)
 	if (connect(new_socket, (struct sockaddr *) &server_address, sizeof(server_address)) < 0) 
 	{
 		perror("Error: could not connect to host");
-		exit(1);
+		return -1;
 	}
 
 	// Add socket to open slot
@@ -193,7 +196,7 @@ int P2PPeerNode::makeConnection(string host, int port)
 		P2PSocket a_socket;
 		a_socket.socket_id = new_socket;
 		a_socket.type = "server";
-		a_socket.name = "";
+		a_socket.name = name;
 		socket_vector.push_back(a_socket);
 
 		// Keep track of the last update to the sockets
@@ -205,6 +208,11 @@ int P2PPeerNode::makeConnection(string host, int port)
 	cout << "Connected to server on port " << port << endl;
 
 	return new_socket;
+}
+
+int P2PPeerNode::makeConnection(string host, int port)
+{
+	return makeConnection("", host, port);
 }
 
 /**
@@ -423,6 +431,28 @@ vector<P2PSocket> P2PPeerNode::getSockets()
 	return socket_vector;
 }
 
+struct sockaddr_in P2PPeerNode::getClientAddressFromSocket(int socket_id)
+{
+	// Prepare the client address
+	struct sockaddr_in client_address;
+	socklen_t client_address_length = sizeof(client_address);
+
+	// Get the peer name
+	getpeername(socket_id, (struct sockaddr*)&client_address, &client_address_length);
+
+	return client_address;
+}
+
+struct sockaddr_in P2PPeerNode::getPrimaryAddress()
+{
+	return getClientAddressFromSocket(primary_socket);
+}
+
+int P2PPeerNode::getPublicPort()
+{
+	return public_port;
+}
+
 int P2PPeerNode::countQueueMessages()
 {
 	return message_queue.size();
@@ -442,3 +472,57 @@ P2PMessage P2PPeerNode::popQueueMessage()
 	message_queue.erase(message_queue.begin());
 	return message;
 }
+
+bool P2PPeerNode::hasSocketByName(string name)
+{
+	vector<P2PSocket>::iterator iter;
+	for (iter = socket_vector.begin(); iter != socket_vector.end(); ++iter)
+	{
+		if ((*iter).name == name)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+P2PSocket P2PPeerNode::getSocketByName(string name)
+{
+	P2PSocket socket;
+	vector<P2PSocket>::iterator iter;
+	for (iter = socket_vector.begin(); iter != socket_vector.end(); ++iter)
+	{
+		if ((*iter).name == name)
+		{
+			socket = (*iter);
+		}
+	}
+
+	return socket;
+}
+
+void P2PPeerNode::sendMessageToSocketName(string socket_name, string message)
+{
+	// Validate
+	if (!hasSocketByName(socket_name))
+	{
+		return;
+	}
+
+	// Get a socket by name
+	P2PSocket socket = getSocketByName(socket_name);
+	if (write(socket.socket_id, message.c_str(), message.length()) < 0)
+	{
+		perror("Error: could not send message to server");
+		exit(1);
+	}
+}
+
+void P2PPeerNode::requestFileTransfer(string socket_name, int file_id)
+{
+	// Compose the file transfer request
+	string file_transfer_request = "fileRequest\r\n" + to_string(file_id);
+	sendMessageToSocketName(socket_name, file_transfer_request);
+}
+

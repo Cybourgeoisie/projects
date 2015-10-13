@@ -1,7 +1,7 @@
 #ifndef P2PPEERNODE_H
 #define P2PPEERNODE_H
 
-#include "../common/P2PCommon.hpp"
+#include "../common/P2PCommon.cpp"
 
 using namespace std;
 
@@ -45,6 +45,7 @@ class P2PPeerNode
 
 		// Settings
 		int port_offset;
+		int public_port;
 		unsigned int number_bind_tries;
 
 		// Socket descriptors used for select()
@@ -57,13 +58,22 @@ class P2PPeerNode
 		void setBindMaxOffset(unsigned int);
 
 		// Add new connections
+		int makeConnection(string, string, int);
 		int makeConnection(string, int);
 		int countSockets();
 		vector<P2PSocket> getSockets();
 		timeval getSocketsLastModified();
+		struct sockaddr_in getClientAddressFromSocket(int);
+		struct sockaddr_in getPrimaryAddress();
+		int getPublicPort();
+
+		bool hasSocketByName(string);
+		P2PSocket getSocketByName(string);
+		void sendMessageToSocketName(string, string);
 
 		// Send message to socket
 		void sendMessageToSocket(string, int);
+		void requestFileTransfer(string, int);
 
 		// Interact with message queue
 		P2PMessage popQueueMessage();

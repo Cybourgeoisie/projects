@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <vector>
 #include <algorithm>
+#include <fstream>
 #include <sstream>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -16,9 +17,6 @@
 
 // Directory Management
 #include <dirent.h>
-
-// OpenSSL
-#include <openssl/md5.h>
 
 // Network Includes
 #include <sys/socket.h>
@@ -45,10 +43,22 @@ struct P2PMessage {
 
 struct FileItem {
 	unsigned int socket_id;
+	unsigned int file_id;
+	unsigned int size;
+	string public_address;
+	unsigned int public_port;
 	string name;
 	string path;
 	string hash;
-	unsigned int size;
+};
+
+class P2PCommon
+{
+	public:
+		P2PCommon();
+		static vector<string> parseRequest(string);
+		static vector<string> parseAddress(string);
+		static vector<string> splitString(string, char);
 };
 
 #endif

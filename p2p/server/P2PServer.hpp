@@ -1,7 +1,7 @@
 #ifndef P2PSERVER_H
 #define P2PSERVER_H
 
-#include "../common/P2PCommon.hpp"
+#include "../node/P2PPeerNode.cpp"
 
 using namespace std;
 
@@ -11,11 +11,15 @@ class P2PServer
 		void initialize();
 		void runProgram();
 		void handleRequest(int, string);
-		vector<string> parseRequest(string);
 		string addFiles(int, vector<string>);
 		string listFiles();
 		void updateFileList();
 		bool socketsModified();
+		string getFile(vector<string>);
+
+		bool hasFileWithId(int);
+		FileItem getFileItem(int);
+		string getFileForTransfer(vector<string>);
 
 		// Server limits and port
 		int PORT_NUMBER;
@@ -29,6 +33,7 @@ class P2PServer
 		// Keep a list of the files and active clients
 		vector<FileItem> file_list;
 		timeval sockets_last_modified;
+		int max_file_id;
 
 	public:
 		P2PServer();

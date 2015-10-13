@@ -2,8 +2,6 @@
  * Peer-to-peer client class
  */
 
-#include "../node/P2PPeerNode.hpp"
-#include "../node/P2PPeerNode.cpp"
 #include "P2PClient.hpp"
 
 using namespace std;
@@ -53,8 +51,31 @@ void P2PClient::runProgram()
 			// Get the oldest message
 			P2PMessage message = node.popQueueMessage();
 
-			// Show response
-			cout << message.message << endl;
+			// Parse the request
+			vector<string> request_parsed = P2PCommon::parseRequest(message.message);
+
+			// If the request starts with a keyword, turn to a different direction
+			if (request_parsed[0].compare("fileAddress") == 0)
+			{
+				prepareFileTransferRequest(request_parsed[1], request_parsed[2]);
+			}
+			else if (request_parsed[0].compare("fileRequest") == 0)
+			{
+				initiateFileTransfer(message.socket_id, request_parsed[1]);
+			}
+			else if (request_parsed[0].compare("fileTransfer") == 0)
+			{
+				startTransferFile(request_parsed);
+			}
+			else if (request_parsed[0].compare("fileTransferPart") == 0)
+			{
+				//transferFile(message.socket_id, request_parsed);
+			}
+			else
+			{
+				// Show response
+				cout << message.message << endl;
+			}
 
 			// If we think we've got everything, wait to be certain
 			if (node.countQueueMessages() == 0 && b_awaiting_response)
@@ -76,6 +97,23 @@ void P2PClient::runProgram()
 	}
 }
 
+void P2PClient::prepareFileTransferRequest(string file_id, string address_pair)
+{
+	if (file_id == "NULL" || address_pair == "NULL")
+	{
+		return;
+	}
+
+	// Parse the address
+	vector<string> address = P2PCommon::parseAddress(address_pair);
+
+	// Make the connection
+	node.makeConnection(file_id, address[0], stoi(address[1]));
+
+	// Send the file request
+	node.requestFileTransfer(file_id, stoi(file_id));
+}
+
 bool P2PClient::runUI()
 {
 	char option = showMenu();
@@ -89,6 +127,7 @@ bool P2PClient::runUI()
 			selectFiles();
 			break;
 		case 'd':
+			getFile();
 			break;
 		case 'p':
 			break;
@@ -237,8 +276,18 @@ vector<FileItem> P2PClient::collectFiles(vector<string> files)
 
 void P2PClient::sendFiles(vector<FileItem> files)
 {
+	// Prepare the primary address
+	struct sockaddr_in primary_address;
+	socklen_t primary_address_length = sizeof(primary_address);
+
+	// Get the public-facing port and IP address
+	primary_address = node.getPrimaryAddress();
+	string address = inet_ntoa(primary_address.sin_addr);
+	uint port = ntohs(primary_address.sin_port);
+
+	// Prepare the request
 	b_awaiting_response = true;
-	string add_files_message = "addFiles\r\n";
+	string add_files_message = "addFiles\r\n" + address + ":" + to_string(node.getPublicPort()) + "\r\n";
 
 	// Separate each file with newlines
 	vector<FileItem>::iterator iter;
@@ -250,5 +299,71 @@ void P2PClient::sendFiles(vector<FileItem> files)
 	node.sendMessageToSocket(add_files_message, server_socket);
 }
 
+void P2PClient::getFile()
+{
+	cout << endl << "Enter the numeric key for the file you'd like to download: ";
 
+	// Get the file ID
+	string option;
+	getline(cin, option, '\n');
 
+	// Cleanse the input
+	int i_option = stoi(option);
+
+	// Submit the request
+	b_awaiting_response = true;
+	node.sendMessageToSocket("getFile\r\n" + to_string(i_option), server_socket);
+}
+
+void P2PClient::initiateFileTransfer(int socket_id, string file_id)
+{
+	// Get the desired file from the central server
+	b_awaiting_file_transfer = true;
+	node.sendMessageToSocket("getFileForTransfer\r\nfile:" + file_id 
+		+ "\r\nsocket:" + to_string(socket_id), server_socket);
+}
+
+void P2PClient::startTransferFile(vector<string> request)
+{
+	// Get the File Item info from the file ID
+	vector<string> file_id_info = P2PCommon::splitString(request[1], ':');
+	vector<string> socket_id_info = P2PCommon::splitString(request[2], ':');
+	string path = request[3];
+
+	// Get the file, start transferring
+	cerr << "FILE TRANSFER: " << path << endl;
+
+	// Load in the file bit by bit
+	ifstream is(path, ifstream::binary);
+	/*if (is)
+	{
+		// get length of file:
+		is.seekg(0, is.end);
+		int length = is.tellg();
+		is.seekg(0, is.beg);
+
+		int num_chunks = (length/1024);
+
+		cerr << "file length: " << length << endl;
+		cerr << "number of chunks: " << num_chunks << endl;
+
+		// allocate memory:
+		char * buffer = new char[1024];
+
+		// read data as a block:
+		int i = 0;
+		while (i < num_chunks)
+		{
+			is.read(buffer, 1024);
+			cout << "read " << is.gcount() << " to buffer" << endl;
+			
+			// Move to the next chunk
+			is.seekg((++i) * 1024);
+		}
+
+		// Close and deallocate
+		is.close();
+		delete[] buffer;
+	}
+	*/
+}

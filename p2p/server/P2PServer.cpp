@@ -2,15 +2,16 @@
  * Peer-to-peer server class
  */
 
-#include "../node/P2PPeerNode.hpp"
-#include "../node/P2PPeerNode.cpp"
 #include "P2PServer.hpp"
 
 /**
  * Public Methods
  */
 
-P2PServer::P2PServer() {}
+P2PServer::P2PServer()
+{
+	max_file_id = 0;
+}
 
 void P2PServer::start()
 {
@@ -108,29 +109,10 @@ void P2PServer::updateFileList()
 	sockets_last_modified = node.getSocketsLastModified();
 }
 
-vector<string> P2PServer::parseRequest(string request)
-{
-	// Remove spaces from the request
-	stringstream ss(request);
-	vector<string> request_parsed;
-
-	if (request.length() > 0)
-	{
-		string line;
-		while (getline(ss, line, '\n'))
-		{
-			line.erase(line.find_last_not_of(" \n\r\t")+1);
-			request_parsed.push_back(line);
-		}
-	}
-
-	return request_parsed;
-}
-
 void P2PServer::handleRequest(int socket, string request)
 {
 	// Parse the request
-	vector<string> request_parsed = parseRequest(request);	
+	vector<string> request_parsed = P2PCommon::parseRequest(request);
 
 	// Parse the request for a matching command
 	if (request_parsed[0].compare("addFiles") == 0)
@@ -147,9 +129,19 @@ void P2PServer::handleRequest(int socket, string request)
 		string files = listFiles();
 		write(socket, files.c_str(), files.length());
 	}
-	else if (request.compare("get") == 0)
+	else if (request_parsed[0].compare("getFile") == 0)
 	{
 		cerr << "Getting file" << endl;
+
+		string message = getFile(request_parsed);
+		write(socket, message.c_str(), message.length());
+	}
+	else if (request_parsed[0].compare("getFileForTransfer") == 0)
+	{
+		cerr << "Getting file for transfer" << endl;
+
+		string message = getFileForTransfer(request_parsed);
+		write(socket, message.c_str(), message.length());
 	}
 	else
 	{
@@ -159,16 +151,21 @@ void P2PServer::handleRequest(int socket, string request)
 
 string P2PServer::addFiles(int socket, vector<string> files)
 {
+	// Get the public address / port
+	vector<string> address = P2PCommon::parseAddress(files[1]);
+
+	// Get the socket's IP address
+	struct sockaddr_in client_address = node.getClientAddressFromSocket(socket);
+	string client_public_address = inet_ntoa(client_address.sin_addr);
+
 	int i = 0;
 	vector<string>::iterator iter;
-	for (iter = files.begin() + 1; iter < files.end(); iter++)
+	for (iter = files.begin() + 2; iter < files.end(); iter++, i++)
 	{
-		i++;
-
-		std::stringstream line(*iter);
-		std::string segment;
-		std::vector<std::string> seglist;
-		while(std::getline(line, segment, '\t'))
+		stringstream line(*iter);
+		string segment;
+		vector<string> seglist;
+		while (getline(line, segment, '\t'))
 		{
 			seglist.push_back(segment);
 		}
@@ -176,7 +173,10 @@ string P2PServer::addFiles(int socket, vector<string> files)
 		FileItem file_item;
 		file_item.name = seglist[0];
 		file_item.size = stoi(seglist[1]);
+		file_item.file_id = ++max_file_id;
 		file_item.socket_id = socket;
+		file_item.public_address = client_public_address;
+		file_item.public_port = stoi(address[1]);
 
 		file_list.push_back(file_item);
 	}
@@ -191,15 +191,84 @@ string P2PServer::listFiles()
 		return "\r\nThere are currently no files stored on the server.\r\n";
 	}
 
-	int i = 0;
 	string files_message = "\r\nFile Listing:\r\n";
 
 	vector<FileItem>::iterator iter;
 	for (iter = file_list.begin(); iter < file_list.end(); iter++)
 	{
-		files_message += "\t" + to_string(++i) + ") " + (*iter).name + " - (" + to_string((*iter).size) + " B)" "\r\n";
+		files_message += "\t" + to_string((*iter).file_id) + ") " + (*iter).name + " - (" + to_string((*iter).size) + " B)" "\r\n";
 	}
 
 	return files_message;
 }
 
+string P2PServer::getFile(vector<string> request)
+{
+	// Get the File Item info from the file ID
+	int file_id = stoi(request[1]);
+
+	// Validate that the file exists
+	if (!hasFileWithId(file_id))
+	{
+		return "fileAddress\r\nNULL\r\nNULL";
+	}
+
+	// Get the file item
+	FileItem file_item = getFileItem(file_id);
+
+	// Report the disconnection
+	return "fileAddress\r\n" + to_string(file_id) + "\r\n"
+			+ file_item.public_address + ":" + to_string(file_item.public_port);
+}
+
+string P2PServer::getFileForTransfer(vector<string> request)
+{
+	// Get the File Item info from the file ID
+	vector<string> file_id_info = P2PCommon::splitString(request[1], ':');
+	vector<string> socket_id_info = P2PCommon::splitString(request[2], ':');
+
+	int file_id = stoi(file_id_info[1]);
+	string socket_id = socket_id_info[1];
+
+	// Validate that the file exists
+	if (!hasFileWithId(file_id))
+	{
+		return "fileAddress\r\nNULL\r\nNULL";
+	}
+
+	// Get the file item
+	FileItem file_item = getFileItem(file_id);
+
+	// Report the disconnection
+	return "fileTransfer\r\nfile:" + to_string(file_id) 
+			+ "\r\nsocket:" + socket_id + "\r\n" + file_item.path;
+}
+
+bool P2PServer::hasFileWithId(int file_id)
+{
+	vector<FileItem>::iterator iter;
+	for (iter = file_list.begin(); iter < file_list.end(); iter++)
+	{
+		if ((*iter).file_id == file_id)
+		{
+			return true;	
+		}
+	}
+
+	return false;
+}
+
+FileItem P2PServer::getFileItem(int file_id)
+{
+	FileItem file_item;
+	vector<FileItem>::iterator iter;
+	for (iter = file_list.begin(); iter < file_list.end(); iter++)
+	{
+		if ((*iter).file_id == file_id)
+		{
+			file_item = *iter;
+		}
+	}
+
+	return file_item;
+}
