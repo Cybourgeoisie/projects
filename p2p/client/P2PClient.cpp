@@ -354,7 +354,7 @@ void P2PClient::startTransferFile(vector<string> request)
 	}
 
 	// Load in the file bit by bit
-	ifstream input_stream(path, ifstream::binary);
+	ifstream input_stream(path, ios::binary);
 	if (input_stream)
 	{
 		// Get length of file
@@ -446,16 +446,17 @@ void P2PClient::handleIncomingFileTransfer(vector<string> request, const char * 
 
 	// Get a truncated version of the filename
 	string filename_addtl_ext = ".pt." + file_part + ".of." + total_file_parts + ".p2pft";
-	string new_filename = filename;
+	string new_filename;
+	string filename_trunc = filename;
 	if (filename.length() >= P2PCommon::MAX_FILENAME_LENGTH - filename_addtl_ext.length())
 	{
-		new_filename = filename.substr(0, P2PCommon::MAX_FILENAME_LENGTH - filename_addtl_ext.length());
+		filename_trunc = filename.substr(0, P2PCommon::MAX_FILENAME_LENGTH - filename_addtl_ext.length());
 	}
-	new_filename += filename_addtl_ext;
+	new_filename = filename_trunc + filename_addtl_ext;
 
 	// Save the piece to this folder
 	string data_filename = data_folder + "/" + new_filename;
-	std::ofstream outfile(data_filename.c_str(), std::ofstream::binary);
+	std::ofstream outfile(data_filename.c_str(), ios::binary);
 	if (outfile)
 	{
 		// Write and close
@@ -466,6 +467,81 @@ void P2PClient::handleIncomingFileTransfer(vector<string> request, const char * 
 	else
 	{
 		perror("Error: could not open file to write");
+	}
+
+	// Once we've saved the data, analyze to see if we have a full file
+	// Add all files in the directory
+	DIR *directory;
+	struct dirent *ep;
+
+	// Open the directory
+	directory = opendir(data_folder.c_str());
+	if (directory != NULL)
+	{
+		// Get the expected number of parts
+		unsigned int expected_num_parts = stoi(total_file_parts);
+		unsigned int i = 0;
+
+		// See how many parts we have available
+		while ((ep = readdir(directory)) != NULL && expected_num_parts >= i)
+		{
+			// Evaluate that each part is there
+			string this_filename = string(ep->d_name);
+			if (this_filename.compare(0, filename_trunc.length(), filename_trunc) == 0)
+			{
+				i++;
+			}
+		}
+
+		// If we have all the parts, combine them
+		if (i == expected_num_parts)
+		{
+			string final_filename = P2PCommon::renameDuplicateFile(filename);
+			std::ofstream outfile(final_filename.c_str(), ios::binary);
+			if (outfile)
+			{
+				for (i = 1; i <= expected_num_parts; i++)
+				{
+					// Get the current file to read
+					string this_filename = data_folder + '/' + filename_trunc 
+						+ ".pt." + to_string(i) + ".of." + total_file_parts + ".p2pft";
+
+					// Open the file to read in
+					ifstream input_stream(this_filename, ios::binary);
+					if (input_stream)
+					{
+						// Get length of file
+						input_stream.seekg(0, input_stream.end);
+						unsigned int length = input_stream.tellg();
+						input_stream.seekg(0, input_stream.beg);
+
+						// Allocate memory for transferring data
+						char * buffer = new char[length];
+						input_stream.read(buffer, length);
+
+						// Read the contents of this file into the general file
+						outfile.write(buffer, length);
+						outfile.flush();
+					}
+
+					// Delete the unneeded chunk
+					if (remove(this_filename.c_str()) != 0)
+					{
+						perror("Error: Could not remove outdated file chunk");
+					}
+				}
+
+				// Close the output file
+				outfile.close();
+			}
+			else
+			{
+				perror("Error: could not open file to write");
+			}
+		}
+
+		// Close the directory
+		closedir(directory);
 	}
 }
 
