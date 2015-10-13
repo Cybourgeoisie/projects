@@ -59,6 +59,11 @@ class P2PCommon
 		static vector<string> parseRequest(string);
 		static vector<string> parseAddress(string);
 		static vector<string> splitString(string, char);
+		static string trimWhitespace(string);
+		static string renameDuplicateFile(string);
+
+		// Some variables used throughout the program
+		static const unsigned int MAX_FILENAME_LENGTH = 255;
 };
 
 #endif

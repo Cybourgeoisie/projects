@@ -113,6 +113,11 @@ void P2PServer::handleRequest(int socket, string request)
 {
 	// Parse the request
 	vector<string> request_parsed = P2PCommon::parseRequest(request);
+
+	// Trim whitespace from the command
+	request_parsed[0] = P2PCommon::trimWhitespace(request_parsed[0]);
+
+	// Report to the front
 	cerr << request_parsed[0] << endl;
 
 	// Parse the request for a matching command

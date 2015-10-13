@@ -23,7 +23,7 @@ class P2PClient
 		void prepareFileTransferRequest(string, string);
 		void initiateFileTransfer(int, string);
 		void startTransferFile(vector<string>);
-		void handleIncomingFileTransfer(vector<string>);
+		void handleIncomingFileTransfer(vector<string>, const char *);
 
 		// UI Management
 		bool b_awaiting_response;
@@ -35,6 +35,11 @@ class P2PClient
 		// Keep track of the peer node
 		P2PPeerNode node;
 		int server_socket;
+
+		// File transfer
+		static const unsigned int FILE_CHUNK_SIZE = 224;
+		static const unsigned int HEADER_SIZE = 326;
+
 
 	public:
 		P2PClient();

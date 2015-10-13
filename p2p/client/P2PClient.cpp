@@ -10,7 +10,7 @@ using namespace std;
  * Public Methods
  */
 
-P2PClient::P2PClient() {}
+P2PClient::P2PClient() { }
 
 void P2PClient::start()
 {
@@ -54,6 +54,9 @@ void P2PClient::runProgram()
 			// Parse the request
 			vector<string> request_parsed = P2PCommon::parseRequest(message.message);
 
+			// Trim whitespace from the command
+			request_parsed[0] = P2PCommon::trimWhitespace(request_parsed[0]);
+
 			// If the request starts with a keyword, turn to a different direction
 			if (request_parsed[0].compare("fileAddress") == 0)
 			{
@@ -69,7 +72,7 @@ void P2PClient::runProgram()
 			}
 			else if (request_parsed[0].compare("fileTransfer") == 0)
 			{
-				handleIncomingFileTransfer(request_parsed);
+				handleIncomingFileTransfer(request_parsed, message.message.c_str());
 			}
 			else
 			{
@@ -99,6 +102,10 @@ void P2PClient::runProgram()
 
 void P2PClient::prepareFileTransferRequest(string file_id, string address_pair)
 {
+	// Trim any whitespace
+	file_id = P2PCommon::trimWhitespace(file_id);
+	address_pair = P2PCommon::trimWhitespace(address_pair);
+
 	if (file_id == "NULL" || address_pair == "NULL")
 	{
 		return;
@@ -329,21 +336,21 @@ void P2PClient::startTransferFile(vector<string> request)
 	vector<string> file_id_info = P2PCommon::splitString(request[1], ':');
 	vector<string> socket_id_info = P2PCommon::splitString(request[2], ':');
 
-	int socket_id = stoi(socket_id_info[1]);
-	string path = request[3];
+	int socket_id = stoi(P2PCommon::trimWhitespace(socket_id_info[1]));
+	string path = P2PCommon::trimWhitespace(request[3]);
 
 	// Get the filename from the path
-	vector<string> path_info = P2PCommon::splitString(request[3], '/');
+	vector<string> path_info = P2PCommon::splitString(path, '/');
 	string filename = path_info.back();
 
 	// If the filename is greater than 255 characters, trim it accordingly
-	if (filename.length() > 255)
+	if (filename.length() > P2PCommon::MAX_FILENAME_LENGTH)
 	{
 		vector<string> filename_info = P2PCommon::splitString(filename, '.');
 		string filename_ext = filename_info.back();
 
 		// Return a filename that fits
-		filename = filename.substr(0, 255 - 1 - filename_ext.length()) + '.' + filename_ext;
+		filename = filename.substr(0, P2PCommon::MAX_FILENAME_LENGTH - 1 - filename_ext.length()) + '.' + filename_ext;
 	}
 
 	// Load in the file bit by bit
@@ -353,10 +360,6 @@ void P2PClient::startTransferFile(vector<string> request)
 		// Get length of file
 		input_stream.seekg(0, input_stream.end);
 		unsigned int length = input_stream.tellg();
-
-		// Settings
-		unsigned int FILE_CHUNK_SIZE = 1024;
-		unsigned int HEADER_SIZE = 326;
 
 		// Determine number of file chunks
 		unsigned int num_chunks;
@@ -372,11 +375,11 @@ void P2PClient::startTransferFile(vector<string> request)
 		char * buffer = new char[FILE_CHUNK_SIZE + HEADER_SIZE];
 
 		// Read data as blocks
-		unsigned int i = 0;
-		while (i < num_chunks)
+		unsigned int i = 1;
+		while (i <= num_chunks)
 		{
 			// Clear out the buffer
-			memset(&buffer[0], 0, FILE_CHUNK_SIZE + HEADER_SIZE);
+			memset(buffer, 0, FILE_CHUNK_SIZE + HEADER_SIZE);
 
 			/*
 				Header:
@@ -392,7 +395,8 @@ void P2PClient::startTransferFile(vector<string> request)
 				"fileTransfer", filename.c_str(), num_chunks, i, "hash");
 
 			// Read in the data to send
-			int bytes_read = input_stream.read(&buffer[HEADER_SIZE], FILE_CHUNK_SIZE);
+			input_stream.read(&buffer[HEADER_SIZE], FILE_CHUNK_SIZE);
+			int bytes_read = input_stream.gcount();
 
 			// Send the data across the wire
 			int bytes_written = write(socket_id, buffer, HEADER_SIZE + bytes_read);
@@ -401,8 +405,11 @@ void P2PClient::startTransferFile(vector<string> request)
 				// TO BE HANDLED - when write could not deliver the full payload
 			}
 
+			// If we write too fast, then the messages are sent in one packet
+			usleep(5000);
+
 			// Move to the next chunk
-			input_stream.seekg((++i) * FILE_CHUNK_SIZE);
+			input_stream.seekg((i++) * FILE_CHUNK_SIZE);
 		}
 
 		// Close and deallocate
@@ -411,16 +418,54 @@ void P2PClient::startTransferFile(vector<string> request)
 	}
 }
 
-void P2PClient::handleIncomingFileTransfer(vector<string> request)
+void P2PClient::handleIncomingFileTransfer(vector<string> request, const char * raw_message)
 {
 	// Parse the info
 	vector<string> header_info = P2PCommon::splitString(request[1], '\t');
 
 	// Direct the data stream into the correct file
-	string filename = header_info[0];
+	string filename = P2PCommon::trimWhitespace(header_info[0]);
+	string total_file_parts = P2PCommon::trimWhitespace(header_info[1]);
+	string file_part = P2PCommon::trimWhitespace(header_info[2]);
 
-	// If this file already exists, then make a new name
-	
+	// Data folder
+	string data_folder = "P2PRawData";
 
-	cerr << "gettin this file: " << filename << endl;
+	// Ensure we have the data storage folder to work with
+	struct stat s;
+	int file_status = stat(data_folder.c_str(), &s);
+	if (!(file_status == 0 && (s.st_mode & S_IFDIR)))
+	{
+		if (mkdir(data_folder.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != 0)
+		{
+			string message = "Error: could not create folder to save data. Create folder called " + data_folder;
+			perror(message.c_str());
+			return;
+		}
+	}
+
+	// Get a truncated version of the filename
+	string filename_addtl_ext = ".pt." + file_part + ".of." + total_file_parts + ".p2pft";
+	string new_filename = filename;
+	if (filename.length() >= P2PCommon::MAX_FILENAME_LENGTH - filename_addtl_ext.length())
+	{
+		new_filename = filename.substr(0, P2PCommon::MAX_FILENAME_LENGTH - filename_addtl_ext.length());
+	}
+	new_filename += filename_addtl_ext;
+
+	// Save the piece to this folder
+	string data_filename = data_folder + "/" + new_filename;
+	std::ofstream outfile(data_filename.c_str(), std::ofstream::binary);
+	if (outfile)
+	{
+		// Write and close
+		outfile.write(&raw_message[HEADER_SIZE], strlen(&raw_message[HEADER_SIZE]));
+		outfile.flush();
+		outfile.close();
+	}
+	else
+	{
+		perror("Error: could not open file to write");
+	}
 }
+
