@@ -398,6 +398,8 @@ void P2PClient::startTransferFile(vector<string> request)
 			input_stream.read(&buffer[HEADER_SIZE], FILE_CHUNK_SIZE);
 			int bytes_read = input_stream.gcount();
 
+			// SUSPECT THAT THE BUFFER IS BEING CUT OFF BY NULL TERMINATORS
+
 			// Send the data across the wire
 			int bytes_written = write(socket_id, buffer, HEADER_SIZE + bytes_read);
 			if (bytes_written < HEADER_SIZE + bytes_read)
