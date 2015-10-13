@@ -27,7 +27,19 @@ vector<string> P2PCommon::splitString(string request, char delimeter)
 		string line;
 		while (getline(ss, line, delimeter))
 		{
+			// Trim trailing whitespace
 			line.erase(line.find_last_not_of(" \n\r\t")+1);
+
+			// Trim leading whitespace
+			if (line.length() > 0)
+			{
+				int first_non_whitespace = line.find_first_not_of(" \n\r\t");
+				if (first_non_whitespace > 0)
+				{
+					line = line.substr(first_non_whitespace, line.length() - first_non_whitespace);
+				}
+			}
+
 			request_parsed.push_back(line);
 		}
 	}

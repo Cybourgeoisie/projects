@@ -23,7 +23,7 @@ class P2PClient
 		void prepareFileTransferRequest(string, string);
 		void initiateFileTransfer(int, string);
 		void startTransferFile(vector<string>);
-		void transferFile(int, string);
+		void handleIncomingFileTransfer(vector<string>);
 
 		// UI Management
 		bool b_awaiting_response;

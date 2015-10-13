@@ -63,13 +63,13 @@ void P2PClient::runProgram()
 			{
 				initiateFileTransfer(message.socket_id, request_parsed[1]);
 			}
-			else if (request_parsed[0].compare("fileTransfer") == 0)
+			else if (request_parsed[0].compare("initiateFileTransfer") == 0)
 			{
 				startTransferFile(request_parsed);
 			}
-			else if (request_parsed[0].compare("fileTransferPart") == 0)
+			else if (request_parsed[0].compare("fileTransfer") == 0)
 			{
-				//transferFile(message.socket_id, request_parsed);
+				handleIncomingFileTransfer(request_parsed);
 			}
 			else
 			{
@@ -293,7 +293,7 @@ void P2PClient::sendFiles(vector<FileItem> files)
 	vector<FileItem>::iterator iter;
 	for (iter = files.begin(); iter < files.end(); iter++)
 	{
-		add_files_message += (*iter).name + "\t" + to_string((*iter).size) + "\r\n";
+		add_files_message += (*iter).name + '\t' + to_string((*iter).size) + '\t' + (*iter).path + "\r\n";
 	}
 
 	node.sendMessageToSocket(add_files_message, server_socket);
@@ -328,42 +328,99 @@ void P2PClient::startTransferFile(vector<string> request)
 	// Get the File Item info from the file ID
 	vector<string> file_id_info = P2PCommon::splitString(request[1], ':');
 	vector<string> socket_id_info = P2PCommon::splitString(request[2], ':');
+
+	int socket_id = stoi(socket_id_info[1]);
 	string path = request[3];
 
-	// Get the file, start transferring
-	cerr << "FILE TRANSFER: " << path << endl;
+	// Get the filename from the path
+	vector<string> path_info = P2PCommon::splitString(request[3], '/');
+	string filename = path_info.back();
+
+	// If the filename is greater than 255 characters, trim it accordingly
+	if (filename.length() > 255)
+	{
+		vector<string> filename_info = P2PCommon::splitString(filename, '.');
+		string filename_ext = filename_info.back();
+
+		// Return a filename that fits
+		filename = filename.substr(0, 255 - 1 - filename_ext.length()) + '.' + filename_ext;
+	}
 
 	// Load in the file bit by bit
-	ifstream is(path, ifstream::binary);
-	/*if (is)
+	ifstream input_stream(path, ifstream::binary);
+	if (input_stream)
 	{
-		// get length of file:
-		is.seekg(0, is.end);
-		int length = is.tellg();
-		is.seekg(0, is.beg);
+		// Get length of file
+		input_stream.seekg(0, input_stream.end);
+		unsigned int length = input_stream.tellg();
 
-		int num_chunks = (length/1024);
+		// Settings
+		unsigned int FILE_CHUNK_SIZE = 1024;
+		unsigned int HEADER_SIZE = 326;
 
-		cerr << "file length: " << length << endl;
-		cerr << "number of chunks: " << num_chunks << endl;
+		// Determine number of file chunks
+		unsigned int num_chunks;
+		if (length % FILE_CHUNK_SIZE == 0)
+			num_chunks = length/FILE_CHUNK_SIZE;
+		else
+			num_chunks = length/FILE_CHUNK_SIZE + 1;
 
-		// allocate memory:
-		char * buffer = new char[1024];
+		// Start back at beginning
+		input_stream.seekg(0, input_stream.beg);
 
-		// read data as a block:
-		int i = 0;
+		// Allocate memory for sending data in chunks
+		char * buffer = new char[FILE_CHUNK_SIZE + HEADER_SIZE];
+
+		// Read data as blocks
+		unsigned int i = 0;
 		while (i < num_chunks)
 		{
-			is.read(buffer, 1024);
-			cout << "read " << is.gcount() << " to buffer" << endl;
-			
+			// Clear out the buffer
+			memset(&buffer[0], 0, FILE_CHUNK_SIZE + HEADER_SIZE);
+
+			/*
+				Header:
+					flag (12) + 2 = 13 chars
+					filename (255) + 1 = 256 chars
+					total number of chunks (10) + 1, current chunk (10)  + 1 = 22 chars
+					checksum (32) + 2 = 34 chars
+					payload (1024 B)
+			*/
+			// \t\r\n + filename + flag + chunks  + checksum = header
+			// 7      + 255      + 12   + 10 + 10 + 32       = 326
+			sprintf(buffer, "%12s\r\n%255s\t%10d\t%10d\t%32s\r\n", 
+				"fileTransfer", filename.c_str(), num_chunks, i, "hash");
+
+			// Read in the data to send
+			int bytes_read = input_stream.read(&buffer[HEADER_SIZE], FILE_CHUNK_SIZE);
+
+			// Send the data across the wire
+			int bytes_written = write(socket_id, buffer, HEADER_SIZE + bytes_read);
+			if (bytes_written < HEADER_SIZE + bytes_read)
+			{
+				// TO BE HANDLED - when write could not deliver the full payload
+			}
+
 			// Move to the next chunk
-			is.seekg((++i) * 1024);
+			input_stream.seekg((++i) * FILE_CHUNK_SIZE);
 		}
 
 		// Close and deallocate
-		is.close();
+		input_stream.close();
 		delete[] buffer;
 	}
-	*/
+}
+
+void P2PClient::handleIncomingFileTransfer(vector<string> request)
+{
+	// Parse the info
+	vector<string> header_info = P2PCommon::splitString(request[1], '\t');
+
+	// Direct the data stream into the correct file
+	string filename = header_info[0];
+
+	// If this file already exists, then make a new name
+	
+
+	cerr << "gettin this file: " << filename << endl;
 }

@@ -113,6 +113,7 @@ void P2PServer::handleRequest(int socket, string request)
 {
 	// Parse the request
 	vector<string> request_parsed = P2PCommon::parseRequest(request);
+	cerr << request_parsed[0] << endl;
 
 	// Parse the request for a matching command
 	if (request_parsed[0].compare("addFiles") == 0)
@@ -173,6 +174,7 @@ string P2PServer::addFiles(int socket, vector<string> files)
 		FileItem file_item;
 		file_item.name = seglist[0];
 		file_item.size = stoi(seglist[1]);
+		file_item.path = seglist[2];
 		file_item.file_id = ++max_file_id;
 		file_item.socket_id = socket;
 		file_item.public_address = client_public_address;
@@ -233,14 +235,14 @@ string P2PServer::getFileForTransfer(vector<string> request)
 	// Validate that the file exists
 	if (!hasFileWithId(file_id))
 	{
-		return "fileAddress\r\nNULL\r\nNULL";
+		return "initiateFileTransfer\r\nNULL\r\nNULL";
 	}
 
 	// Get the file item
 	FileItem file_item = getFileItem(file_id);
 
 	// Report the disconnection
-	return "fileTransfer\r\nfile:" + to_string(file_id) 
+	return "initiateFileTransfer\r\nfile:" + to_string(file_id) 
 			+ "\r\nsocket:" + socket_id + "\r\n" + file_item.path;
 }
 
@@ -267,6 +269,7 @@ FileItem P2PServer::getFileItem(int file_id)
 		if ((*iter).file_id == file_id)
 		{
 			file_item = *iter;
+			break;
 		}
 	}
 
