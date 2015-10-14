@@ -20,14 +20,8 @@ class P2PClient
 		void sendFiles(vector<FileItem>);
 		void getFile();
 
-		void prepareFileTransferRequest(string, string);
-		void initiateFileTransfer(int, string);
-		void startTransferFile(vector<string>);
-		void handleIncomingFileTransfer(vector<string>, const char *);
-
 		// UI Management
 		bool b_awaiting_response;
-		bool b_awaiting_file_transfer;
 
 		// Thread worker functions
 		static void * startActivityListenerThread(void *);
@@ -38,8 +32,10 @@ class P2PClient
 
 		// File transfer
 		static const unsigned int FILE_CHUNK_SIZE = 224;
-		static const unsigned int HEADER_SIZE = 326;
+		static const unsigned int HEADER_SIZE = 63;
 
+		// File List
+		vector<FileItem> file_list;
 
 	public:
 		P2PClient();

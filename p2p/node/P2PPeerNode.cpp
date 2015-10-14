@@ -15,7 +15,7 @@ P2PPeerNode::P2PPeerNode()
 
 	// Define server limits
 	MAX_CONNECTIONS = 4;
-	BUFFER_SIZE = 1025; // Size given in bytes
+	BUFFER_SIZE = 513; // Size given in bytes
 	INCOMING_MESSAGE_SIZE = BUFFER_SIZE - 1;
 
 	// Keep track of the client sockets
@@ -349,7 +349,51 @@ void P2PPeerNode::handleExistingConnections()
 			{
 				if (iter->socket_id == sockets[i])
 				{
-					if (iter->type.compare("server") == 0)
+					// Parse the request
+					vector<string> request_parsed = P2PCommon::parseRequest(buffer);
+
+					// Trim whitespace from the command
+					request_parsed[0] = P2PCommon::trimWhitespace(request_parsed[0]);
+
+					cerr << "Request: " << request_parsed[0] << endl;
+
+					if (request_parsed[0].compare("fileTransfer") == 0)
+					{
+						// Make a copy of the data
+						char * buffer_copy = new char[BUFFER_SIZE];
+						memcpy(buffer_copy, buffer, BUFFER_SIZE);
+
+						// Perform this as a separate thread
+						pthread_t thread;
+						if (pthread_create(&thread, NULL, &P2PPeerNode::handleFileTransfer, (void *)buffer_copy) != 0)
+						{
+							perror("Error: could not spawn thread");
+							//exit(1);
+						}
+					}
+					else if (request_parsed[0].compare("initiateFileTransfer") == 0)
+					{
+						// Make a copy of the data
+						char * buffer_copy = new char[BUFFER_SIZE];
+						memcpy(buffer_copy, buffer, BUFFER_SIZE);
+
+						// Perform this as a separate thread
+						pthread_t thread;
+						if (pthread_create(&thread, NULL, &P2PPeerNode::initiateFileTransfer, (void *)buffer_copy) != 0)
+						{
+							perror("Error: could not spawn thread");
+							//exit(1);
+						}
+					}
+					else if (request_parsed[0].compare("fileRequest") == 0)
+					{
+						getFileForTransfer(iter->socket_id, request_parsed[1]);
+					}
+					else if (request_parsed[0].compare("fileAddress") == 0)
+					{
+						prepareFileTransferRequest(request_parsed[1], request_parsed[2]);
+					}
+					else if (iter->type.compare("server") == 0)
 					{
 						this->enqueueMessage(sockets[i], buffer);
 					}
@@ -526,3 +570,48 @@ void P2PPeerNode::requestFileTransfer(string socket_name, int file_id)
 	sendMessageToSocketName(socket_name, file_transfer_request);
 }
 
+void P2PPeerNode::prepareFileTransferRequest(string file_id, string address_pair)
+{
+	// Trim any whitespace
+	file_id = P2PCommon::trimWhitespace(file_id);
+	address_pair = P2PCommon::trimWhitespace(address_pair);
+
+	if (file_id == "NULL" || address_pair == "NULL")
+	{
+		return;
+	}
+
+	// Parse the address
+	vector<string> address = P2PCommon::parseAddress(address_pair);
+
+	// Make the connection
+	makeConnection(file_id, address[0], stoi(address[1]));
+
+	// Send the file request
+	requestFileTransfer(file_id, stoi(file_id));
+}
+
+void P2PPeerNode::getFileForTransfer(int socket_id, string file_id)
+{
+	// Get the desired file from the central server
+	sendMessageToSocketName("central_server", "getFileForTransfer\r\nfile:" + file_id 
+		+ "\r\nsocket:" + to_string(socket_id));
+}
+
+void * P2PPeerNode::initiateFileTransfer(void * arg)
+{
+	char * buffer = (char *)arg;
+	P2PFileTransfer file_transfer;
+	file_transfer.startTransferFile(buffer);
+	delete[] buffer;
+	pthread_exit(NULL);
+}
+
+void * P2PPeerNode::handleFileTransfer(void * arg)
+{
+	char * buffer = (char *)arg;
+	P2PFileTransfer file_transfer;
+	file_transfer.handleIncomingFileTransfer(buffer);
+	delete[] buffer;
+	pthread_exit(NULL);
+}

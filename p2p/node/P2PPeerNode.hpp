@@ -2,6 +2,7 @@
 #define P2PPEERNODE_H
 
 #include "../common/P2PCommon.cpp"
+#include "../filetransfer/P2PFileTransfer.cpp"
 
 using namespace std;
 
@@ -13,8 +14,15 @@ class P2PPeerNode
 		void handleNewConnectionRequest();
 		void handleExistingConnections();
 		void handleRequest(int, char*);
-
 		void enqueueMessage(int, char*);
+
+		// Get File for transfer
+		void prepareFileTransferRequest(string, string);
+		void getFileForTransfer(int, string);
+
+		// Worker threads
+		static void * initiateFileTransfer(void *);
+		static void * handleFileTransfer(void *);
 
 		// Own socket
 		void openPrimarySocket();
@@ -29,7 +37,7 @@ class P2PPeerNode
 		// Buffer
 		char * buffer;
 
-		// Message queue
+		// Message and data queue
 		vector<P2PMessage> message_queue;
 
 		// Sockets
@@ -78,6 +86,10 @@ class P2PPeerNode
 		// Interact with message queue
 		P2PMessage popQueueMessage();
 		int countQueueMessages();
+
+		// Interact with data queue
+		P2PDataPacket popQueueData();
+		int countQueueData();
 };
 
 #endif

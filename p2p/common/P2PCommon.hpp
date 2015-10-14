@@ -41,6 +41,14 @@ struct P2PMessage {
 	string message;
 };
 
+struct P2PDataPacket {
+	unsigned int socket_id;
+	unsigned int file_id;
+	unsigned int total_packets;
+	unsigned int packet_number;
+	char * data;
+};
+
 struct FileItem {
 	unsigned int socket_id;
 	unsigned int file_id;
