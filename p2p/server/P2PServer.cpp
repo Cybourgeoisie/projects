@@ -16,7 +16,7 @@ P2PServer::P2PServer()
 void P2PServer::start()
 {
 	// Open the socket and listen for connections
-	node = P2PPeerNode();
+	node = P2PPeerNode(32); // Allow up to 32 simultaneous connections
 	node.setBindMaxOffset(1);
 	node.start();
 
@@ -77,6 +77,11 @@ bool P2PServer::socketsModified()
 
 void P2PServer::updateFileList()
 {
+	/*
+		RBH: NEEDS TO BE UPDATED TO HANDLE THE NEW FORMAT OF FILEADDRESS[]
+		INSIDE OF FILE_LIST
+	*/
+
 	// Get all of the current sockets
 	vector<P2PSocket> sockets = node.getSockets();
 
@@ -176,19 +181,59 @@ string P2PServer::addFiles(int socket, vector<string> files)
 			seglist.push_back(segment);
 		}
 
-		FileItem file_item;
-		file_item.name = seglist[0];
-		file_item.size = stoi(seglist[1]);
-		file_item.path = seglist[2];
-		file_item.file_id = ++max_file_id;
-		file_item.socket_id = socket;
-		file_item.public_address = client_public_address;
-		file_item.public_port = stoi(address[1]);
+		// Create the new FileAddress record
+		FileAddress file_address;
+		file_address.remote_path = seglist[2];
+		file_address.socket_id = socket;
+		file_address.public_address = client_public_address;
+		file_address.public_port = stoi(address[1]);
 
-		file_list.push_back(file_item);
+		// If the file is new, add a new record
+		FileItem file_item;
+		if (hasFileItemWithNameSize(seglist[0], stoi(seglist[1])))
+		{
+			file_item = getFileItemWithNameSize(seglist[0], stoi(seglist[1]));
+		}
+		else
+		{
+			file_item.name = seglist[0];
+			file_item.size = stoi(seglist[1]);
+			file_item.file_id = ++max_file_id;
+			
+			// temporary backwards-compat
+			//file_item.path = seglist[2];
+			//file_item.socket_id = socket;
+			//file_item.public_address = client_public_address;
+			//file_item.public_port = stoi(address[1]);
+			
+			file_list.push_back(file_item);
+		}
+
+		// Don't add the address if we already have it
+		if (!isAddressAttachedToFileItem(file_address, file_item))
+		{
+			// Add the address to the list
+			file_item.addresses.push_back(file_address);
+
+			// Update the file item record
+			updateFileItem(file_item);
+		}
 	}
 
 	return to_string(i) + " files successfully added to file listing.";
+}
+
+void P2PServer::updateFileItem(FileItem file_item)
+{
+	vector<FileItem>::iterator iter;
+	for (iter = file_list.begin(); iter < file_list.end(); iter++)
+	{
+		if (file_item.file_id == (*iter).file_id)
+		{
+			(*iter) = file_item;
+			break;
+		}
+	}
 }
 
 string P2PServer::listFiles()
@@ -223,9 +268,18 @@ string P2PServer::getFile(vector<string> request)
 	// Get the file item
 	FileItem file_item = getFileItem(file_id);
 
+	// Compile all of the public addresses
+	string address_list;
+	vector<FileAddress>::iterator iter;
+	for (iter = file_item.addresses.begin(); iter < file_item.addresses.end(); iter++)
+	{
+		address_list += "\r\n" + (*iter).public_address + ":" + to_string((*iter).public_port);
+	}
+
 	// Report the disconnection
 	return "fileAddress\r\n" + to_string(file_id) + "\r\n"
-			+ file_item.public_address + ":" + to_string(file_item.public_port);
+			+ file_item.name + "\r\n" + to_string(file_item.size)
+			+ address_list;
 }
 
 string P2PServer::getFileForTransfer(vector<string> request)
@@ -246,9 +300,26 @@ string P2PServer::getFileForTransfer(vector<string> request)
 	// Get the file item
 	FileItem file_item = getFileItem(file_id);
 
+	// RBH todo: Find the address that matches the socket
+	// THIS should instead simply contain the public address..
+
 	// Report the disconnection
 	return "initiateFileTransfer\r\nfile:" + to_string(file_id) 
 			+ "\r\nsocket:" + socket_id + "\r\n" + file_item.path;
+}
+
+bool P2PServer::hasFileItemWithNameSize(string name, int size)
+{
+	vector<FileItem>::iterator iter;
+	for (iter = file_list.begin(); iter < file_list.end(); iter++)
+	{
+		if ((*iter).size == size && (*iter).name.compare(name) == 0)
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
 bool P2PServer::hasFileWithId(int file_id)
@@ -265,6 +336,22 @@ bool P2PServer::hasFileWithId(int file_id)
 	return false;
 }
 
+FileItem P2PServer::getFileItemWithNameSize(string name, int size)
+{
+	FileItem file_item;
+	vector<FileItem>::iterator iter;
+	for (iter = file_list.begin(); iter < file_list.end(); iter++)
+	{
+		if ((*iter).size == size && (*iter).name.compare(name) == 0)
+		{
+			file_item = (*iter);
+			break;
+		}
+	}
+
+	return file_item;
+}
+
 FileItem P2PServer::getFileItem(int file_id)
 {
 	FileItem file_item;
@@ -279,4 +366,19 @@ FileItem P2PServer::getFileItem(int file_id)
 	}
 
 	return file_item;
+}
+
+bool P2PServer::isAddressAttachedToFileItem(FileAddress file_address, FileItem file_item)
+{
+	vector<FileAddress>::iterator iter;
+	for (iter = file_item.addresses.begin(); iter < file_item.addresses.end(); iter++)
+	{
+		if ((*iter).public_address == file_address.public_address &&
+			(*iter).public_port == file_address.public_port)
+		{
+			return true;
+		}
+	}
+
+	return false;
 }

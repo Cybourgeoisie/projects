@@ -43,6 +43,9 @@ void * P2PClient::startActivityListenerThread(void * arg)
 
 void P2PClient::runProgram()
 {
+	// Clear the screen to boot
+	P2PCommon::clearScreen();
+
 	bool b_program_active = true;
 	while (b_program_active)
 	{
@@ -69,7 +72,7 @@ void P2PClient::runProgram()
 		}
 		else
 		{
-			b_program_active = runUI();			
+			b_program_active = runUI();
 		}
 	}
 }
@@ -81,6 +84,7 @@ bool P2PClient::runUI()
 	switch (option)
 	{
 		case 'v':
+			P2PCommon::clearScreen();
 			viewFiles();
 			break;
 		case 'a':
@@ -88,8 +92,11 @@ bool P2PClient::runUI()
 			break;
 		case 'd':
 			getFile();
+			P2PCommon::clearScreen();
 			break;
 		case 'p':
+			P2PCommon::clearScreen();
+			showProgress();
 			break;
 		case 'q':
 			break;
@@ -147,6 +154,9 @@ void P2PClient::selectFiles()
 			files.push_back(location);
 	}
 	while (location.length() > 0);
+
+	// Clear the screen now
+	P2PCommon::clearScreen();
 
 	// Filter and collect files
 	vector<FileItem> file_list;
@@ -277,6 +287,14 @@ void P2PClient::getFile()
 	int i_option = stoi(option);
 
 	// Submit the request
-	b_awaiting_response = true;
 	node.sendMessageToSocket("getFile\r\n" + to_string(i_option), server_socket);
+}
+
+void P2PClient::showProgress()
+{
+	cout << "File Progress:" << endl;
+
+	// Find all files that were requested, get current progress:
+	string progress = node.getFileProgress();
+	cout << progress << endl;
 }

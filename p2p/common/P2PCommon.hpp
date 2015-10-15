@@ -41,23 +41,28 @@ struct P2PMessage {
 	string message;
 };
 
-struct P2PDataPacket {
+struct FileAddress {
 	unsigned int socket_id;
-	unsigned int file_id;
-	unsigned int total_packets;
-	unsigned int packet_number;
-	char * data;
+	string public_address;
+	unsigned int public_port;
+	string remote_path;
 };
 
 struct FileItem {
 	unsigned int socket_id;
 	unsigned int file_id;
 	unsigned int size;
+	vector<FileAddress> addresses;
 	string public_address;
 	unsigned int public_port;
 	string name;
 	string path;
 	string hash;
+};
+
+struct FileDataPacket {
+	FileItem file_item;
+	char * packet;
 };
 
 class P2PCommon
@@ -69,6 +74,7 @@ class P2PCommon
 		static vector<string> splitString(string, char);
 		static string trimWhitespace(string);
 		static string renameDuplicateFile(string);
+		static void clearScreen();
 
 		// Some variables used throughout the program
 		static const unsigned int MAX_FILENAME_LENGTH = 255;

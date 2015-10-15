@@ -21,6 +21,12 @@ class P2PServer
 		FileItem getFileItem(int);
 		string getFileForTransfer(vector<string>);
 
+		bool hasFileItemWithNameSize(string, int);
+		FileItem getFileItemWithNameSize(string, int);
+		void updateFileItem(FileItem);
+
+		bool isAddressAttachedToFileItem(FileAddress, FileItem);
+
 		// Server limits and port
 		int PORT_NUMBER;
 

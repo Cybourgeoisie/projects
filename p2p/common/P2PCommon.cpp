@@ -94,3 +94,7 @@ string P2PCommon::renameDuplicateFile(string filename)
 	return new_filename;
 }
 
+void P2PCommon::clearScreen()
+{
+	cout << string(80, '\n');
+}

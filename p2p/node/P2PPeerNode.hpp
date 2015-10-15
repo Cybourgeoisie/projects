@@ -9,6 +9,7 @@ using namespace std;
 class P2PPeerNode
 {
 	private:
+		void construct(int);
 		void initialize();
 		void resetSocketDescriptors();
 		void handleNewConnectionRequest();
@@ -17,8 +18,9 @@ class P2PPeerNode
 		void enqueueMessage(int, char*);
 
 		// Get File for transfer
-		void prepareFileTransferRequest(string, string);
+		void prepareFileTransferRequest(vector<string>);
 		void getFileForTransfer(int, string);
+		FileItem getFileItem(int);
 
 		// Worker threads
 		static void * initiateFileTransfer(void *);
@@ -37,8 +39,9 @@ class P2PPeerNode
 		// Buffer
 		char * buffer;
 
-		// Message and data queue
+		// Message queue and file list
 		vector<P2PMessage> message_queue;
+		vector<FileItem> local_file_list;
 
 		// Sockets
 		int primary_socket;
@@ -61,13 +64,15 @@ class P2PPeerNode
 
 	public:
 		P2PPeerNode();
+		P2PPeerNode(int);
 		void start();
 		void listenForActivity();
 		void setBindMaxOffset(unsigned int);
 
-		// Add new connections
+		// Add and remove new connections
 		int makeConnection(string, string, int);
-		int makeConnection(string, int);
+		void closeSocket(int);
+
 		int countSockets();
 		vector<P2PSocket> getSockets();
 		timeval getSocketsLastModified();
@@ -79,6 +84,9 @@ class P2PPeerNode
 		P2PSocket getSocketByName(string);
 		void sendMessageToSocketName(string, string);
 
+		// Progress
+		string getFileProgress();
+
 		// Send message to socket
 		void sendMessageToSocket(string, int);
 		void requestFileTransfer(string, int);
@@ -88,7 +96,6 @@ class P2PPeerNode
 		int countQueueMessages();
 
 		// Interact with data queue
-		P2PDataPacket popQueueData();
 		int countQueueData();
 };
 

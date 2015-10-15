@@ -19,6 +19,7 @@ class P2PClient
 		vector<FileItem> collectFiles(vector<string>);
 		void sendFiles(vector<FileItem>);
 		void getFile();
+		void showProgress();
 
 		// UI Management
 		bool b_awaiting_response;

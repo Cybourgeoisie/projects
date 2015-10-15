@@ -3,6 +3,7 @@
  */
 
 #include "P2PFileTransfer.hpp"
+#include <bitset>
 
 /**
  * Public Methods
@@ -10,8 +11,12 @@
 
 P2PFileTransfer::P2PFileTransfer() {}
 
-void P2PFileTransfer::startTransferFile(char * raw_message)
+void P2PFileTransfer::startTransferFile(FileDataPacket packet)
 {
+	// Get the raw message and file information from the packet
+	FileItem file_item = packet.file_item;
+	char * raw_message = packet.packet;
+
 	// Parse the request
 	vector<string> request = P2PCommon::parseRequest(raw_message);
 
@@ -67,11 +72,11 @@ void P2PFileTransfer::startTransferFile(char * raw_message)
 
 			/*
 				Header:
-					flag (12) + 2 = 13 chars
+					flag (12) + 2 = 14 chars
 					file id = 10 + 1 = 11 chars
 					payload size = 5 + 1 = 6 chars
 					total number of chunks (10) + 1, current chunk (10) + 1 = 22 chars
-					checksum (8) + 2 = 34 chars
+					checksum (8) + 2 = 10 chars
 					payload (variable)
 			// \t\r\n + file id + paysize + flag + chunks  + checksum = header
 			// 8      + 10      + 5       + 12   + 10 + 10 + 8        = 63
@@ -81,10 +86,13 @@ void P2PFileTransfer::startTransferFile(char * raw_message)
 			input_stream.read(&buffer[HEADER_SIZE], FILE_CHUNK_SIZE);
 			int bytes_read = input_stream.gcount();
 
+			// Compute the checksum
+			string checksum = computeChecksum(&buffer[HEADER_SIZE], bytes_read);
+
 			// Prepend the header
 			char header[HEADER_SIZE+1]; // +1 = null terminator
 			sprintf(header, "%12s\r\n%10d\t%5d\t%10d\t%10d\t%8s\r\n", 
-				"fileTransfer", file_id, bytes_read, num_chunks, i, "hash");
+				"fileTransfer", file_id, bytes_read, num_chunks, i, checksum.c_str());
 
 			// Copy the header to the buffer
 			memcpy(&buffer[0], header, HEADER_SIZE);
@@ -109,8 +117,15 @@ void P2PFileTransfer::startTransferFile(char * raw_message)
 	}
 }
 
-void P2PFileTransfer::handleIncomingFileTransfer(char * raw_message)
+void P2PFileTransfer::handleIncomingFileTransfer(FileDataPacket packet)
 {
+	// Get the raw message and file information from the packet
+	FileItem file_item = packet.file_item;
+	char * raw_message = packet.packet;
+
+	// Retrieve the filename
+	string filename = file_item.name;
+
 	// Parse the request
 	vector<string> request = P2PCommon::parseRequest(raw_message);
 	vector<string> header_info = P2PCommon::splitString(request[1], '\t');
@@ -120,8 +135,16 @@ void P2PFileTransfer::handleIncomingFileTransfer(char * raw_message)
 	int payload_size = stoi(P2PCommon::trimWhitespace(header_info[1]));
 	string total_file_parts = P2PCommon::trimWhitespace(header_info[2]);
 	string file_part = P2PCommon::trimWhitespace(header_info[3]);
+	string checksum = P2PCommon::trimWhitespace(header_info[4]);
 
-	string filename = "test.txt";
+	// Validate the checksum before we do anything
+	string computed_checksum = computeChecksum(&raw_message[HEADER_SIZE], payload_size);
+
+	if (checksum.compare(computed_checksum) != 0)
+	{
+		perror("Error: calculated checksums do not match.");
+		return;
+	}
 
 	// Data folder
 	string data_folder = "P2PRawData";
@@ -240,3 +263,38 @@ void P2PFileTransfer::handleIncomingFileTransfer(char * raw_message)
 	}
 }
 
+string P2PFileTransfer::computeChecksum(char * data, int size)
+{
+	unsigned int checksum = 0;
+	unsigned int value = 0;
+	int i = 0;
+	while (i < size)
+	{
+		// Add on the next value
+		value <<= 8;
+		value |= data[i];
+
+		// If we have a full value, add it to the checksum
+		if ((i+1)%4 == 0)
+		{
+			checksum += value;
+			checksum += (checksum <= value) ? 1 : 0; // Overflow -> Wraparound, add 1 bit
+			value = 0;
+		}
+
+		// Move to the next iteration
+		i++;
+	}
+
+	// Handle leftover values
+	if (value > 0)
+	{
+		checksum += value;
+		checksum += (checksum <= value) ? 1 : 0; 
+	}
+
+	// Convert the checksum to hex and return as a string
+	stringstream sstream;
+	sstream << hex << checksum;
+	return sstream.str();
+}

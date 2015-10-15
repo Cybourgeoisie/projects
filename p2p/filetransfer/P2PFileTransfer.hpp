@@ -11,8 +11,9 @@ class P2PFileTransfer
 	public:
 		P2PFileTransfer();
 
-		void startTransferFile(char *);
-		void handleIncomingFileTransfer(char *);
+		void startTransferFile(FileDataPacket);
+		void handleIncomingFileTransfer(FileDataPacket);
+		string computeChecksum(char *, int);
 
 		// File transfer
 		static const unsigned int FILE_CHUNK_SIZE = 449;
