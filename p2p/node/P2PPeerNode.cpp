@@ -844,8 +844,6 @@ void P2PPeerNode::prepareFileTransferRequest(vector<string> request, int start, 
 		file_item.missing_pieces.erase(file_item.missing_pieces.begin());
 		count = file_item.missing_pieces.front();
 		file_item.missing_pieces.erase(file_item.missing_pieces.begin());
-
-		cerr << "missing pieces: " << start << ", " << count << endl;
 	}
 
 	// Estimate the number of chunks that will be needed
