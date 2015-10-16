@@ -141,7 +141,7 @@ int P2PPeerNode::bindPrimarySocket(int socket, int offset)
 	server_address.sin_addr.s_addr = INADDR_ANY;
 	server_address.sin_port = htons(PORT_NUMBER + offset);
 
-	return bind(socket, (struct sockaddr *) &server_address, sizeof(server_address));
+	return ::bind(socket, (struct sockaddr *) &server_address, sizeof(server_address));
 }
 
 
@@ -441,8 +441,6 @@ void P2PPeerNode::handleExistingConnections()
 
 					// Trim whitespace from the command
 					request_parsed[0] = P2PCommon::trimWhitespace(request_parsed[0]);
-
-					cerr << request_parsed[0] << endl;
 
 					if (request_parsed[0].compare("fileTransfer") == 0)
 					{
