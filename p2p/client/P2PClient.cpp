@@ -10,7 +10,10 @@ using namespace std;
  * Public Methods
  */
 
-P2PClient::P2PClient() { }
+P2PClient::P2PClient()
+{
+	b_awaiting_response = false;
+}
 
 void P2PClient::start(string address, int port)
 {

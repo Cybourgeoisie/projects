@@ -180,7 +180,7 @@ int P2PPeerNode::makeConnection(string name, string host, int port)
 	// Connect to the server
 	if (connect(new_socket, (struct sockaddr *) &server_address, sizeof(server_address)) < 0) 
 	{
-		cout << "Error: could not connect to host" << endl;
+		perror("Error: could not connect to host");
 		return -1;
 	}
 

@@ -21,7 +21,6 @@ int main(int argc, const char* argv[])
 		port = 27890;
 	}
 
-
 	// Start up the client server
 	P2PClient client;
 	client.start(address, port);
