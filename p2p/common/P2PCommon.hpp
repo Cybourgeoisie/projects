@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <vector>
+#include <map>
 #include <algorithm>
 #include <fstream>
 #include <sstream>
@@ -30,40 +31,46 @@
 
 using namespace std;
 
-struct P2PSocket {
+typedef struct {
 	unsigned int socket_id;
 	string type;
 	string name;
-};
+} P2PSocket;
 
-struct P2PMessage {
+typedef struct {
 	unsigned int socket_id;
 	string message;
-};
+} P2PMessage;
 
-struct FileAddress {
+typedef struct {
 	unsigned int socket_id;
 	string public_address;
 	unsigned int public_port;
 	string remote_path;
-};
+} FileAddress;
 
-struct FileItem {
-	unsigned int socket_id;
+typedef struct {
 	unsigned int file_id;
 	unsigned int size;
 	vector<FileAddress> addresses;
-	string public_address;
-	unsigned int public_port;
 	string name;
 	string path;
 	string hash;
-};
+	bool completed;
+	vector<unsigned int> missing_pieces;
+} FileItem;
 
-struct FileDataPacket {
+typedef struct {
+	FileItem file_item;
+	int socket_id;
+	unsigned int start;
+	unsigned int count;
+} FileDataRequest;
+
+typedef struct {
 	FileItem file_item;
 	char * packet;
-};
+} FileDataPacket;
 
 class P2PCommon
 {
@@ -73,7 +80,7 @@ class P2PCommon
 		static vector<string> parseAddress(string);
 		static vector<string> splitString(string, char);
 		static string trimWhitespace(string);
-		static string renameDuplicateFile(string);
+		static string renameDuplicateFile(string, string);
 		static void clearScreen();
 
 		// Some variables used throughout the program

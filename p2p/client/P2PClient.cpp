@@ -12,18 +12,38 @@ using namespace std;
 
 P2PClient::P2PClient() { }
 
-void P2PClient::start()
+void P2PClient::start(string address, int port)
 {
+	// Clear the screen to boot
+	P2PCommon::clearScreen();
+
 	// Open the socket and listen for connections
-	node = P2PPeerNode();
+	node = P2PPeerNode(27891, 512);
 	node.setBindMaxOffset(100);
 	node.start();
-	server_socket = node.makeConnection("central_server", "localhost", 27890);
+	server_socket = node.makeConnection("central_server", address, port);
+
+	// Validate that we're connected to the server
+	if (server_socket < 0)
+	{
+		cout << "Fatal Error: can not connect to central server." << endl;
+		cout << "Please check your connectivity and the server's address." << endl;
+		exit(1);
+	}
 
 	// Once we're connected, we'll want to bind the server listener
 	// Perform this as a separate thread
 	pthread_t node_thread;
 	if (pthread_create(&node_thread, NULL, &P2PClient::startActivityListenerThread, (void *)&node) != 0)
+	{
+		perror("Error: could not spawn peer listeners");
+		exit(1);
+	}
+
+	// Keep track of downloads, see if anything is halted
+	// Perform this as a separate thread
+	pthread_t transfer_thread;
+	if (pthread_create(&transfer_thread, NULL, &P2PClient::startTransferThread, (void *)&node) != 0)
 	{
 		perror("Error: could not spawn peer listeners");
 		exit(1);
@@ -41,11 +61,16 @@ void * P2PClient::startActivityListenerThread(void * arg)
 	pthread_exit(NULL);
 }
 
+void * P2PClient::startTransferThread(void * arg)
+{
+	P2PPeerNode * node;
+	node = (P2PPeerNode *) arg;
+	node->monitorTransfers();
+	pthread_exit(NULL);
+}
+
 void P2PClient::runProgram()
 {
-	// Clear the screen to boot
-	P2PCommon::clearScreen();
-
 	bool b_program_active = true;
 	while (b_program_active)
 	{
@@ -167,6 +192,9 @@ void P2PClient::selectFiles()
 		return;
 	}
 
+	// Save the files locally
+	saveFileList(file_list);
+
 	// Beam the files up
 	sendFiles(file_list);
 }
@@ -244,6 +272,11 @@ vector<FileItem> P2PClient::collectFiles(vector<string> files)
 	return clean_files;
 }
 
+void P2PClient::saveFileList(vector<FileItem> files)
+{
+	node.addLocalFileItems(files);
+}
+
 void P2PClient::sendFiles(vector<FileItem> files)
 {
 	// Prepare the primary address
@@ -253,7 +286,6 @@ void P2PClient::sendFiles(vector<FileItem> files)
 	// Get the public-facing port and IP address
 	primary_address = node.getPrimaryAddress();
 	string address = inet_ntoa(primary_address.sin_addr);
-	uint port = ntohs(primary_address.sin_port);
 
 	// Prepare the request
 	b_awaiting_response = true;

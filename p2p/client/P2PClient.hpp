@@ -26,6 +26,7 @@ class P2PClient
 
 		// Thread worker functions
 		static void * startActivityListenerThread(void *);
+		static void * startTransferThread(void *);
 
 		// Keep track of the peer node
 		P2PPeerNode node;
@@ -36,11 +37,14 @@ class P2PClient
 		static const unsigned int HEADER_SIZE = 63;
 
 		// File List
-		vector<FileItem> file_list;
+		vector<FileItem> local_file_list;
+		void saveFileList(vector<FileItem>);
+		bool hasLocalFile(string, int);
+		bool getLocalFile(string, int);
 
 	public:
 		P2PClient();
-		void start();
+		void start(string, int);
 };
 
 #endif

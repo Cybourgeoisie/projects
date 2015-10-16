@@ -19,13 +19,13 @@ class P2PServer
 
 		bool hasFileWithId(int);
 		FileItem getFileItem(int);
-		string getFileForTransfer(vector<string>);
 
 		bool hasFileItemWithNameSize(string, int);
 		FileItem getFileItemWithNameSize(string, int);
 		void updateFileItem(FileItem);
 
 		bool isAddressAttachedToFileItem(FileAddress, FileItem);
+		bool isSocketAttachedToFileItem(int, FileItem);
 
 		// Server limits and port
 		int PORT_NUMBER;

@@ -3,34 +3,29 @@
  */
 
 #include "P2PFileTransfer.hpp"
-#include <bitset>
 
 /**
  * Public Methods
  */
+const string P2PFileTransfer::DATA_FOLDER = "P2PRawData";
 
 P2PFileTransfer::P2PFileTransfer() {}
 
-void P2PFileTransfer::startTransferFile(FileDataPacket packet)
+void P2PFileTransfer::setBounds(unsigned int start, unsigned int count)
 {
-	// Get the raw message and file information from the packet
-	FileItem file_item = packet.file_item;
-	char * raw_message = packet.packet;
+	this->start = start;
+	this->count = count;
+}
 
-	// Parse the request
-	vector<string> request = P2PCommon::parseRequest(raw_message);
+void P2PFileTransfer::startTransferFile(FileItem file_item, int socket_id)
+{
+	// Get the file ID and path
+	int file_id = file_item.file_id;
+	string path = file_item.path;
+	//cerr << "startTransferFile path: " << file_item.path << endl;
 
-	// Get the File Item info from the file ID
-	vector<string> file_id_info = P2PCommon::splitString(request[1], ':');
-	vector<string> socket_id_info = P2PCommon::splitString(request[2], ':');
-
-	int file_id = stoi(P2PCommon::trimWhitespace(file_id_info[1]));
-	int socket_id = stoi(P2PCommon::trimWhitespace(socket_id_info[1]));
-	string path = P2PCommon::trimWhitespace(request[3]);
-
-	// Get the filename from the path
-	vector<string> path_info = P2PCommon::splitString(path, '/');
-	string filename = path_info.back();
+	// Get the filename
+	string filename = file_item.name;
 
 	// If the filename is greater than 255 characters, trim it accordingly
 	if (filename.length() > P2PCommon::MAX_FILENAME_LENGTH)
@@ -64,8 +59,20 @@ void P2PFileTransfer::startTransferFile(FileDataPacket packet)
 		char * buffer = new char[FILE_CHUNK_SIZE + HEADER_SIZE];
 
 		// Read data as blocks
-		unsigned int i = 1;
-		while (i <= num_chunks)
+		unsigned int i = 0;
+		unsigned int total = num_chunks;
+
+		if (start > 0 && start < num_chunks)
+			i = start;
+
+		if (count > 0 && (count+i) <= num_chunks)
+			total = (count+i);
+
+		// Start at the proper location
+		if (i > 0)
+			input_stream.seekg(i * FILE_CHUNK_SIZE);
+	
+		while (i <= total)
 		{
 			// Clear out the buffer
 			memset(buffer, 0, FILE_CHUNK_SIZE + HEADER_SIZE);
@@ -99,13 +106,18 @@ void P2PFileTransfer::startTransferFile(FileDataPacket packet)
 
 			// Send the data across the wire
 			int bytes_written = write(socket_id, buffer, HEADER_SIZE + bytes_read);
+			if (bytes_written == -1)
+			{
+				perror("Error: could not write to socket");
+			}
+
 			if (bytes_written < HEADER_SIZE + bytes_read)
 			{
 				// TO BE HANDLED - when write could not deliver the full payload
 			}
 
 			// If we write too fast, then the messages are sent in one packet
-			usleep(10000);
+			usleep(5000);
 
 			// Move to the next chunk
 			input_stream.seekg((i++) * FILE_CHUNK_SIZE);
@@ -115,6 +127,10 @@ void P2PFileTransfer::startTransferFile(FileDataPacket packet)
 		input_stream.close();
 		delete[] buffer;
 	}
+	else
+	{
+		perror("Error: could not initiate file transfer");
+	}
 }
 
 void P2PFileTransfer::handleIncomingFileTransfer(FileDataPacket packet)
@@ -122,9 +138,6 @@ void P2PFileTransfer::handleIncomingFileTransfer(FileDataPacket packet)
 	// Get the raw message and file information from the packet
 	FileItem file_item = packet.file_item;
 	char * raw_message = packet.packet;
-
-	// Retrieve the filename
-	string filename = file_item.name;
 
 	// Parse the request
 	vector<string> request = P2PCommon::parseRequest(raw_message);
@@ -146,34 +159,24 @@ void P2PFileTransfer::handleIncomingFileTransfer(FileDataPacket packet)
 		return;
 	}
 
-	// Data folder
-	string data_folder = "P2PRawData";
-
 	// Ensure we have the data storage folder to work with
 	struct stat s;
-	int file_status = stat(data_folder.c_str(), &s);
+	int file_status = stat(P2PFileTransfer::DATA_FOLDER.c_str(), &s);
 	if (!(file_status == 0 && (s.st_mode & S_IFDIR)))
 	{
-		if (mkdir(data_folder.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != 0)
+		if (mkdir(P2PFileTransfer::DATA_FOLDER.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != 0)
 		{
-			string message = "Error: could not create folder to save data. Create folder called " + data_folder;
+			string message = "Error: could not create folder to save data. Create folder called " + P2PFileTransfer::DATA_FOLDER;
 			perror(message.c_str());
 			return;
 		}
 	}
 
-	// Get a truncated version of the filename
-	string filename_addtl_ext = ".pt." + file_part + ".of." + total_file_parts + ".p2pft";
-	string new_filename;
-	string filename_trunc = filename;
-	if (filename.length() >= P2PCommon::MAX_FILENAME_LENGTH - filename_addtl_ext.length())
-	{
-		filename_trunc = filename.substr(0, P2PCommon::MAX_FILENAME_LENGTH - filename_addtl_ext.length());
-	}
-	new_filename = filename_trunc + filename_addtl_ext;
+	// Construct the download filename
+	string filename = file_id + ".pt." + file_part + ".of." + total_file_parts + ".p2pft";
 
 	// Save the piece to this folder
-	string data_filename = data_folder + "/" + new_filename;
+	string data_filename = P2PFileTransfer::DATA_FOLDER + "/" + filename;
 	std::ofstream outfile(data_filename.c_str(), ios::binary);
 	if (outfile)
 	{
@@ -186,6 +189,20 @@ void P2PFileTransfer::handleIncomingFileTransfer(FileDataPacket packet)
 	{
 		perror("Error: could not open file to write");
 	}
+}
+
+bool P2PFileTransfer::compileFileParts(FileItem & file_item)
+{
+	// Keep track of whether the file is completed
+	bool b_file_completed = false;
+
+	// Compute the total number of parts from the file size
+	unsigned int length = file_item.size;
+	unsigned int num_chunks;
+	if (length % FILE_CHUNK_SIZE == 0)
+		num_chunks = length/FILE_CHUNK_SIZE;
+	else
+		num_chunks = length/FILE_CHUNK_SIZE + 1;
 
 	// Once we've saved the data, analyze to see if we have a full file
 	// Add all files in the directory
@@ -193,74 +210,135 @@ void P2PFileTransfer::handleIncomingFileTransfer(FileDataPacket packet)
 	struct dirent *ep;
 
 	// Open the directory
-	directory = opendir(data_folder.c_str());
-	if (directory != NULL)
+	directory = opendir(P2PFileTransfer::DATA_FOLDER.c_str());
+	if (directory == NULL)
 	{
-		// Get the expected number of parts
-		unsigned int expected_num_parts = stoi(total_file_parts);
-		unsigned int i = 0;
+		return false;
+	}
 
-		// See how many parts we have available
-		while ((ep = readdir(directory)) != NULL && expected_num_parts >= i)
+	// Get the file information
+	string file_id = to_string(file_item.file_id);
+	string filename = file_item.name;
+
+	// Prepare the array 
+	bool pieces_found[num_chunks];
+	for (unsigned int i = 1; i <= num_chunks; i++)
+	{
+		pieces_found[i] = false;
+	}
+
+	// See how many parts we have available
+	unsigned int i = 0;
+	while ((ep = readdir(directory)) != NULL && num_chunks >= i)
+	{
+		string this_filename = string(ep->d_name);
+
+		// Validate the filename length
+		if (this_filename.length() < 8)
 		{
-			// Evaluate that each part is there
-			string this_filename = string(ep->d_name);
-			if (this_filename.compare(0, filename_trunc.length(), filename_trunc) == 0)
-			{
-				i++;
-			}
+			continue;
 		}
 
-		// If we have all the parts, combine them
-		if (i == expected_num_parts)
+		// Evaluate that each part is there
+		if (this_filename.compare(0, file_id.length() + 1, (file_id + ".").c_str()) == 0
+			&& this_filename.compare(this_filename.length() - 6, 6, ".p2pft") == 0)
 		{
-			string final_filename = P2PCommon::renameDuplicateFile(filename);
-			std::ofstream outfile(final_filename.c_str(), ios::binary);
-			if (outfile)
+			// Get the piece number
+			vector<string> pieces = P2PCommon::splitString(this_filename, '.');
+
+			// Keep track of found pieces so we can request the missing ones
+			pieces_found[stoi(pieces[2])] = true;
+
+			i++;
+		}
+	}
+
+	// If we have all the parts, combine them
+	if (i == num_chunks)
+	{
+		string final_filename = P2PFileTransfer::DATA_FOLDER + '/' 
+			+ P2PCommon::renameDuplicateFile(filename, P2PFileTransfer::DATA_FOLDER);
+
+		std::ofstream outfile(final_filename.c_str(), ios::binary);
+
+		if (outfile)
+		{
+			for (i = 1; i <= num_chunks; i++)
 			{
-				for (i = 1; i <= expected_num_parts; i++)
+				// Get the current file to read
+				string this_filename = P2PFileTransfer::DATA_FOLDER + '/' + file_id 
+					+ ".pt." + to_string(i) + ".of." + to_string(num_chunks) + ".p2pft";
+
+				// Open the file to read in
+				ifstream input_stream(this_filename, ios::binary);
+				if (input_stream)
 				{
-					// Get the current file to read
-					string this_filename = data_folder + '/' + filename_trunc 
-						+ ".pt." + to_string(i) + ".of." + total_file_parts + ".p2pft";
+					// Get length of file
+					input_stream.seekg(0, input_stream.end);
+					unsigned int length = input_stream.tellg();
+					input_stream.seekg(0, input_stream.beg);
 
-					// Open the file to read in
-					ifstream input_stream(this_filename, ios::binary);
-					if (input_stream)
-					{
-						// Get length of file
-						input_stream.seekg(0, input_stream.end);
-						unsigned int length = input_stream.tellg();
-						input_stream.seekg(0, input_stream.beg);
+					// Allocate memory for transferring data
+					char * buffer = new char[length];
+					input_stream.read(buffer, length);
 
-						// Allocate memory for transferring data
-						char * buffer = new char[length];
-						input_stream.read(buffer, length);
-
-						// Read the contents of this file into the general file
-						outfile.write(buffer, length);
-						outfile.flush();
-					}
-
-					// Delete the unneeded chunk
-					if (remove(this_filename.c_str()) != 0)
-					{
-						perror("Error: Could not remove outdated file chunk");
-					}
+					// Read the contents of this file into the general file
+					outfile.write(buffer, length);
+					outfile.flush();
 				}
 
-				// Close the output file
-				outfile.close();
+				// Delete the unneeded chunk
+				if (remove(this_filename.c_str()) != 0)
+				{
+					perror("Error: Could not remove outdated file chunk");
+				}
 			}
-			else
+
+			// Notify the user
+			cout << "Your download of \"" << filename << "\" is completed." << endl;
+			b_file_completed = true;
+			file_item.path = final_filename;
+
+			// Close the output file
+			outfile.close();
+		}
+		else
+		{
+			perror("Error: could not open file to write");
+		}
+	}
+	else
+	{
+		// If we're missing pieces, determine which ones we're missing
+		int start = 0; int count = 0;
+		for (int i = 1; i <= num_chunks; i++)
+		{
+			if (!pieces_found[i] && start < 1)
 			{
-				perror("Error: could not open file to write");
+				start = i;
+				count = 1;
+			}
+			else if (!pieces_found[i] && start >= 1)
+			{
+				count++;
+			}
+
+			if ((pieces_found[i] && start >= 1) || (i == num_chunks && start >= 1))
+			{
+				// We have a range - save it so that the peernode can restart the transfer
+				file_item.missing_pieces.push_back(start);
+				file_item.missing_pieces.push_back(count);
+				start = 0;
+				count = 0;
+
 			}
 		}
-
-		// Close the directory
-		closedir(directory);
 	}
+
+	// Close the directory
+	closedir(directory);
+
+	return b_file_completed;
 }
 
 string P2PFileTransfer::computeChecksum(char * data, int size)
@@ -297,4 +375,21 @@ string P2PFileTransfer::computeChecksum(char * data, int size)
 	stringstream sstream;
 	sstream << hex << checksum;
 	return sstream.str();
+}
+
+void P2PFileTransfer::reviewTransfers(vector<FileItem> &download_file_list)
+{
+	bool b_file_completed = false;
+	vector<FileItem>::iterator iter;
+	for (iter = download_file_list.begin(); iter < download_file_list.end(); iter++)
+	{
+		// Skip finished files
+		if ((*iter).completed)
+		{
+			continue;
+		}
+
+		// Compile the file's parts
+		(*iter).completed = compileFileParts(*iter);
+	}
 }

@@ -52,11 +52,17 @@ string P2PCommon::trimWhitespace(string line)
 	return line;
 }
 
-string P2PCommon::renameDuplicateFile(string filename)
+string P2PCommon::renameDuplicateFile(string filename, string directory)
 {
 	// Break the filename into pieces
 	vector<string> filename_info = P2PCommon::splitString(filename, '.');
 	string filename_orig_ext = filename_info.back();
+
+	// If the directory string is empty, assume the current directory
+	if (directory.length() == 0)
+	{
+		directory = "./";
+	}
 
 	// Copy the original filename
 	string new_filename = filename;
@@ -66,7 +72,7 @@ string P2PCommon::renameDuplicateFile(string filename)
 
 	// If this file already exists, then make a new name
 	struct stat s;
-	int file_status = stat(filename.c_str(), &s);
+	int file_status = stat((directory + "/" + filename).c_str(), &s);
 	while (file_status == 0 && (s.st_mode & S_IFREG))
 	{
 		// File found - rename the file
@@ -87,7 +93,7 @@ string P2PCommon::renameDuplicateFile(string filename)
 		new_filename += filename_addtl_ext + filename_orig_ext;
 
 		// Update the file status
-		file_status = stat(new_filename.c_str(), &s);
+		file_status = stat((directory + "/" + new_filename).c_str(), &s);
 	}
 
 	// Return new filename

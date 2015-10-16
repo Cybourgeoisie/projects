@@ -8,20 +8,20 @@
  * Public Methods
  */
 
-P2PPeerNode::P2PPeerNode(int max_connections_value)
+P2PPeerNode::P2PPeerNode(int port, int max_connections_value)
 {
-	this->construct(max_connections_value);
+	this->construct(port, max_connections_value);
 }
 
 P2PPeerNode::P2PPeerNode()
 {
-	this->construct(4);
+	this->construct(27891, 512);
 }
 
-void P2PPeerNode::construct(int max_connections_value)
+void P2PPeerNode::construct(int port, int max_connections_value)
 {
 	// Define the port number to listen through
-	PORT_NUMBER = 27890;
+	PORT_NUMBER = port;
 
 	// Define server limits
 	MAX_CONNECTIONS = max_connections_value;
@@ -157,7 +157,7 @@ int P2PPeerNode::makeConnection(string name, string host, int port)
 	int new_socket = socket(AF_INET, SOCK_STREAM, 0);
 	if (new_socket < 0)
 	{
-		perror("Error: could not open socket");
+		cout << "Error: could not open socket" << endl;
 		return -1;
 	}
 
@@ -165,7 +165,7 @@ int P2PPeerNode::makeConnection(string name, string host, int port)
 	server = gethostbyname(host.c_str());
 	if (server == NULL)
 	{
-		perror("Error: could not find the host");
+		cout << "Error: could not find the host" << endl;
 		return -1;
 	}
 
@@ -180,7 +180,7 @@ int P2PPeerNode::makeConnection(string name, string host, int port)
 	// Connect to the server
 	if (connect(new_socket, (struct sockaddr *) &server_address, sizeof(server_address)) < 0) 
 	{
-		perror("Error: could not connect to host");
+		cout << "Error: could not connect to host" << endl;
 		return -1;
 	}
 
@@ -194,7 +194,7 @@ int P2PPeerNode::makeConnection(string name, string host, int port)
 			// Report connection denied
 			cout << "Reached maximum number of connections, can't add new one" << endl;
 			close(new_socket);
-			return 0;
+			return -1;
 		}
 
 		// Skip all valid client sockets
@@ -220,11 +220,65 @@ int P2PPeerNode::makeConnection(string name, string host, int port)
 	return new_socket;
 }
 
+/*
+bool P2PPeerNode::isConnection(string address, int port)
+{
+	for (iter = socket_vector.begin(); iter != socket_vector.end(); ++iter)
+	{
+		if (iter->public_address == address)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+*/
+
+void P2PPeerNode::queueSocketToClose(int socket_id)
+{
+	sockets_to_close.push_back(socket_id);
+}
+
+void P2PPeerNode::queueSocketToCloseByName(string socket_name)
+{
+	P2PSocket socket = getSocketByName(socket_name);
+	sockets_to_close.push_back(socket.socket_id);
+}
+
+void P2PPeerNode::closeSocketByName(string socket_name)
+{
+	// Remove the socket from the vector
+	vector<P2PSocket>::iterator iter;
+	for (iter = socket_vector.begin(); iter != socket_vector.end(); )
+	{
+		if (iter->name.compare(socket_name) == 0)
+		{
+			// Remove from the int array
+			for (int i = 0; i < MAX_CONNECTIONS; i++)
+			{
+				if (iter->socket_id == sockets[i])
+				{
+					sockets[i] = 0;
+					break;
+				}
+			}
+
+			iter = socket_vector.erase(iter);
+
+			// Close and free the socket
+			close(iter->socket_id);
+		}
+		else
+			++iter;
+	}
+
+	// Keep track of the last update to the sockets
+	gettimeofday(&sockets_last_modified, NULL);
+}
+
 void P2PPeerNode::closeSocket(int socket)
 {
-	// Close and free the socket
-	close(socket);
-
 	// Remove the socket from the vector
 	vector<P2PSocket>::iterator iter;
 	for (iter = socket_vector.begin(); iter != socket_vector.end(); )
@@ -247,6 +301,9 @@ void P2PPeerNode::closeSocket(int socket)
 			break;
 		}
 	}
+
+	// Close and free the socket
+	close(socket);
 }
 
 /**
@@ -255,13 +312,20 @@ void P2PPeerNode::closeSocket(int socket)
 
 void P2PPeerNode::resetSocketDescriptors()
 {
+	// Determine if we have any sockets to close
+	while (sockets_to_close.size() > 0)
+	{
+		closeSocket(sockets_to_close.front());
+		sockets_to_close.erase(sockets_to_close.begin());
+	}
+
 	// Reset the current socket descriptors
 	FD_ZERO(&socket_descriptors);
 	FD_SET(primary_socket, &socket_descriptors);
 
 	// Keep track of the maximum socket descriptor for select()
 	max_connection = primary_socket;
-	 
+
 	// Add remaining sockets
 	for (int i = 0; i < MAX_CONNECTIONS; i++)
 	{
@@ -357,6 +421,7 @@ void P2PPeerNode::handleExistingConnections()
 			cout << "Connection closed: " << inet_ntoa(client_address.sin_addr) << ":" << ntohs(client_address.sin_port) << endl;
 
 			// Close and free the socket
+			//queueSocketToClose(sockets[i]);
 			closeSocket(sockets[i]);
 		}
 		else
@@ -377,6 +442,8 @@ void P2PPeerNode::handleExistingConnections()
 					// Trim whitespace from the command
 					request_parsed[0] = P2PCommon::trimWhitespace(request_parsed[0]);
 
+					cerr << request_parsed[0] << endl;
+
 					if (request_parsed[0].compare("fileTransfer") == 0)
 					{
 						// Get the File ID
@@ -390,7 +457,7 @@ void P2PPeerNode::handleExistingConnections()
 
 						// Pack the data neatly for travel
 						FileDataPacket packet;
-						packet.file_item = getFileItem(file_id);
+						packet.file_item = getDownloadFileItem(file_id);
 						packet.packet = buffer_copy;
 
 						// Perform this as a separate thread
@@ -401,32 +468,33 @@ void P2PPeerNode::handleExistingConnections()
 							//exit(1);
 						}
 					}
-					else if (request_parsed[0].compare("initiateFileTransfer") == 0)
+					//else if (request_parsed[0].compare("initiateFileTransfer") == 0)
+					else if (request_parsed[0].compare("fileRequest") == 0)
 					{
 						// Get the File ID
-						vector<string> file_id_info = P2PCommon::splitString(request_parsed[1], ':');
-						int file_id = stoi(P2PCommon::trimWhitespace(file_id_info[1]));
+						int file_id = stoi(P2PCommon::trimWhitespace(request_parsed[1]));
+						string name = P2PCommon::trimWhitespace(request_parsed[2]);
+						int size = stoi(P2PCommon::trimWhitespace(request_parsed[3]));
+						unsigned int start = stoi(P2PCommon::trimWhitespace(request_parsed[4]));
+						unsigned int count = stoi(P2PCommon::trimWhitespace(request_parsed[5]));
 
-						// Make a copy of the data
-						char * buffer_copy = new char[BUFFER_SIZE];
-						memcpy(buffer_copy, buffer, BUFFER_SIZE);
+						// Prepare the request
+						FileDataRequest request;
+						request.socket_id = iter->socket_id;
+						request.start = start;
+						request.count = count;
+						request.file_item = getLocalFileItem(name, size);
 
-						// Pack the data neatly for travel
-						FileDataPacket packet;
-						packet.file_item = getFileItem(file_id);
-						packet.packet = buffer_copy;
+						// Set the file ID
+						request.file_item.file_id = file_id;
 
 						// Perform this as a separate thread
 						pthread_t thread;
-						if (pthread_create(&thread, NULL, &P2PPeerNode::initiateFileTransfer, (void *)&packet) != 0)
+						if (pthread_create(&thread, NULL, &P2PPeerNode::initiateFileTransfer, (void *)&request) != 0)
 						{
 							perror("Error: could not spawn thread");
 							//exit(1);
 						}
-					}
-					else if (request_parsed[0].compare("fileRequest") == 0)
-					{
-						getFileForTransfer(iter->socket_id, request_parsed[1]);
 					}
 					else if (request_parsed[0].compare("fileAddress") == 0)
 					{
@@ -474,6 +542,79 @@ void P2PPeerNode::listenForActivity()
 	}
 }
 
+void P2PPeerNode::monitorTransfers()
+{
+	P2PFileTransfer file_transfer;
+	map<int, int> file_to_missing_piece;
+
+	while (true)
+	{
+		// Give it a rest
+		sleep(3);
+
+		// Check to see how file transfers are doing.
+		// If any get stuck, make a request to download more parts.	
+		file_transfer.reviewTransfers(download_file_list);
+
+		// If any are newly completed, remove them from the list
+		vector<FileItem>::iterator iter;
+		for (iter = download_file_list.begin(); iter < download_file_list.end(); )
+		{
+			// Make sure to register newly finished files with the server
+			// Also remove from the downloads list, add to the local list
+			if ((*iter).completed)
+			{
+				FileItem copy_file_item;
+				copy_file_item.file_id = (*iter).file_id;
+				copy_file_item.name = (*iter).name;
+				copy_file_item.size = (*iter).size;
+				copy_file_item.path = (*iter).path; // This was updated when the pieces were put together
+
+				local_file_list.push_back(copy_file_item);
+				addFileToServer(*iter);
+				iter = download_file_list.erase(iter);
+
+				// Also disconnect when we're done
+				queueSocketToCloseByName(to_string(copy_file_item.file_id));
+			}
+			else if ((*iter).missing_pieces.size() > 0 && !file_to_missing_piece[(*iter).file_id])
+			{
+				// We have missing pieces, but this is the first time we've noticed it
+				// So, keep track of the file with missing pieces, and compare the next go-around
+				file_to_missing_piece[(*iter).file_id] = (*iter).missing_pieces[0];
+				iter++;
+			}
+			else if ((*iter).missing_pieces.size() > 0 
+				&& file_to_missing_piece[(*iter).file_id] == (*iter).missing_pieces[0])
+			{
+				// We have missing pieces that have persisted - time to send a new request
+				//queueSocketToCloseByName(to_string((*iter).file_id));
+				sendMessageToSocketName("central_server", "getFile\r\n" + to_string((*iter).file_id));
+
+				file_to_missing_piece[(*iter).file_id] = 0;
+				//iter = download_file_list.erase(iter);
+				iter++;
+			}
+		}
+	}
+}
+
+
+void P2PPeerNode::addFileToServer(FileItem file_item)
+{
+	// Prepare the primary address
+	struct sockaddr_in primary_address;
+	socklen_t primary_address_length = sizeof(primary_address);
+
+	// Get the public-facing port and IP address
+	primary_address = getPrimaryAddress();
+	string address = inet_ntoa(primary_address.sin_addr);
+
+	string add_files_message = "addFiles\r\n" + address + ":" + to_string(getPublicPort()) + "\r\n";
+	add_files_message += file_item.name + '\t' + to_string(file_item.size) + '\t' + file_item.path + "\r\n";
+
+	sendMessageToSocketName("central_server", add_files_message);
+}
 
 /**
  * Program Logic
@@ -562,18 +703,61 @@ string P2PPeerNode::getFileProgress()
 
 	// Iterate through all files in the local file list
 	vector<FileItem>::iterator iter;
-	for (iter = local_file_list.begin(); iter != local_file_list.end(); ++iter)
+	for (iter = download_file_list.begin(); iter != download_file_list.end(); ++iter)
 	{
 		// RBH need to get actual progress
-		progress += "\t" + (*iter).name + "\tCompleted" + "\r\n";
+		progress += "\t" + (*iter).name + "\t" + analyzeFileProgress((*iter)) + "\r\n";
 	}
 
 	if (progress.length() == 0)
 	{
-		progress = "You have no active or past file transfers.";
+		progress = "You have no active file transfers.";
 	}
 
 	return progress;
+}
+
+string P2PPeerNode::analyzeFileProgress(FileItem file_item)
+{
+	// First, check to see if the file is finished downloading
+	DIR *directory;
+	struct dirent *ep;
+
+	// Open the directory
+	directory = opendir(P2PFileTransfer::DATA_FOLDER.c_str());
+	if (directory != NULL)
+	{
+		// Get the expected number of parts
+		unsigned int size_downloaded = 0;
+
+		string filename = file_item.name;
+		string filename_trunc = filename;
+		int length_buffer = 30;
+		if (filename.length() >= P2PCommon::MAX_FILENAME_LENGTH - length_buffer)
+		{
+			filename_trunc = filename.substr(0, P2PCommon::MAX_FILENAME_LENGTH - length_buffer);
+		}
+
+		// See how many parts we have available
+		while ((ep = readdir(directory)) != NULL)
+		{
+			// Evaluate that each part is there
+			string this_filename = string(ep->d_name);
+			if (this_filename.compare(0, filename_trunc.length(), filename_trunc) == 0)
+			{				
+				struct stat s;
+				string path = (P2PFileTransfer::DATA_FOLDER + '/' + this_filename);
+				if (stat(path.c_str(), &s) == 0 && (s.st_mode & S_IFREG))
+				{
+					size_downloaded += s.st_size;
+				}
+			}
+		}
+
+		return to_string(size_downloaded) + " of " + to_string(file_item.size) + " bytes";
+	}
+
+	return "Waiting for seeders...";
 }
 
 bool P2PPeerNode::hasSocketByName(string name)
@@ -624,70 +808,119 @@ void P2PPeerNode::sendMessageToSocketName(string socket_name, string message)
 
 void P2PPeerNode::prepareFileTransferRequest(vector<string> request)
 {
+	prepareFileTransferRequest(request, 0, 0);
+}
+
+void P2PPeerNode::prepareFileTransferRequest(vector<string> request, int start, int count)
+{
 	// Trim any whitespace
 	string file_id = P2PCommon::trimWhitespace(request[1]);
-	string name = P2PCommon::trimWhitespace(request[2]);
-	int size = stoi(P2PCommon::trimWhitespace(request[3]));
-	string address_pair = P2PCommon::trimWhitespace(request[4]);
 
 	// If the data came back invalid (possible race condition), just bail
-	if (file_id == "NULL" || address_pair == "NULL")
+	if (file_id == "NULL")
 	{
 		return;
 	}
 
-	// Keep a record of this file
-	FileItem file_item;
-	file_item.name = name;
-	file_item.size = size;
-	file_item.file_id = stoi(file_id);
+	// Convert the remaining data
+	string name = P2PCommon::trimWhitespace(request[2]);
+	int size = stoi(P2PCommon::trimWhitespace(request[3]));
+	string address_pair = P2PCommon::trimWhitespace(request[4]);
 
-	// Push to our local cache
-	local_file_list.push_back(file_item);
+	// Push to our local cache, only if it's not already there
+	if (!hasDownloadFileItem(name, size))
+	{
+		// Keep a record of this file
+		FileItem file_item;
+		file_item.name = name;
+		file_item.size = size;
+		file_item.file_id = stoi(file_id);
 
-	// Parse the address
-	vector<string> address = P2PCommon::parseAddress(address_pair);
+		download_file_list.push_back(file_item);
+	}
+	else
+	{
+		// Get the start and count from the missing pieces
+		FileItem file_item = getDownloadFileItem(name, size);
+		start = file_item.missing_pieces.front();
+		file_item.missing_pieces.erase(file_item.missing_pieces.begin());
+		count = file_item.missing_pieces.front();
+		file_item.missing_pieces.erase(file_item.missing_pieces.begin());
 
-	// Make the connection
-	makeConnection(file_id, address[0], stoi(address[1]));
+		cerr << "missing pieces: " << start << ", " << count << endl;
+	}
 
-	// Send the file request
-	requestFileTransfer(file_id, stoi(file_id));
+	// Estimate the number of chunks that will be needed
+	unsigned int num_chunks;
+	if (size % P2PFileTransfer::FILE_CHUNK_SIZE == 0)
+		num_chunks = size/P2PFileTransfer::FILE_CHUNK_SIZE;
+	else
+		num_chunks = size/P2PFileTransfer::FILE_CHUNK_SIZE + 1;
+
+	// Dole out the requests to each available address
+	int num_addresses = request.size() - 4;
+	int i = 0;
+
+	cout << "Found " << num_addresses << " peers holding this file." << endl;
+
+	// Ensure that start is 1, minimum
+	if (start <= 0)
+	{
+		start = 1;
+	}
+
+	// Ensure that count has a valid value, and divide the count among the available peers
+	if (count <= 0)
+	{
+		count = num_chunks / num_addresses;
+	}
+	else if (count > 0)
+	{
+		count /= num_addresses;
+	}
+
+	while (i < num_addresses)
+	{
+		// Get the address pair
+		address_pair = P2PCommon::trimWhitespace(request[4+i]);
+
+		// Parse the address
+		vector<string> address = P2PCommon::parseAddress(address_pair);
+
+		// Make the connection
+		makeConnection(file_id, address[0], stoi(address[1]));
+
+		// Determine where we start and how many we dole out
+		start += i * count;
+
+		// Send the file request
+		requestFileTransfer(file_id, stoi(file_id), name, size, start, count);
+	
+		// Move to the next address
+		i++;
+	}
 }
 
-void P2PPeerNode::requestFileTransfer(string socket_name, int file_id)
+void P2PPeerNode::requestFileTransfer(string socket_name, int file_id, string name, int size, unsigned int start, unsigned int count)
 {
 	// Compose the file transfer request
-	string file_transfer_request = "fileRequest\r\n" + to_string(file_id);
+	string file_transfer_request = "fileRequest\r\n" + to_string(file_id)
+		+ "\r\n" + name + "\r\n" + to_string(size)
+		+ "\r\n" + to_string(start) + "\r\n" + to_string(count);
 	sendMessageToSocketName(socket_name, file_transfer_request);
-}
-
-void P2PPeerNode::getFileForTransfer(int socket_id, string file_id)
-{
-	// Get the desired file from the central server
-	sendMessageToSocketName("central_server", "getFileForTransfer\r\nfile:" + file_id 
-		+ "\r\nsocket:" + to_string(socket_id));
 }
 
 void * P2PPeerNode::initiateFileTransfer(void * arg)
 {
 	// Revive the packet
-	FileDataPacket * packet;
-	packet = (FileDataPacket *) arg;
+	FileDataRequest * request = static_cast<FileDataRequest *>(arg);
+	//cerr << "initiateFileTransfer path: " << request->file_item.path << endl;
 
 	P2PFileTransfer file_transfer;
-	file_transfer.startTransferFile(*packet);
+	file_transfer.setBounds(request->start, request->count);
+	file_transfer.startTransferFile(request->file_item, request->socket_id);
 
-	/* // Not possible inside a thread - actually, could package the socket info with the FileDataPacket..
-	// Close the socket
-	vector<string> request = P2PCommon::parseRequest(buffer);
-	vector<string> socket_id_info = P2PCommon::splitString(request[2], ':');
-	int socket_id = stoi(P2PCommon::trimWhitespace(socket_id_info[1]));
-	closeSocket(socket_id);
-	*/
-
-	// Finished - free the buffer and close the thread
-	delete[] (*packet).packet;
+	// Finished - close the thread
 	pthread_exit(NULL);
 }
 
@@ -704,11 +937,96 @@ void * P2PPeerNode::handleFileTransfer(void * arg)
 	pthread_exit(NULL);
 }
 
-FileItem P2PPeerNode::getFileItem(int file_id)
+void P2PPeerNode::addDownloadFileItems(vector<FileItem> files)
 {
+	addFileItems(download_file_list, files);
+}
+
+bool P2PPeerNode::hasDownloadFileItem(string name, int size)
+{
+	return hasFileItem(download_file_list, name, size);
+}
+
+FileItem P2PPeerNode::getDownloadFileItem(string name, int size)
+{
+	return getFileItem(download_file_list, name, size);
+}
+
+FileItem P2PPeerNode::getDownloadFileItem(int file_id)
+{
+	return getFileItem(download_file_list, file_id);
+}
+
+void P2PPeerNode::addLocalFileItems(vector<FileItem> files)
+{
+	addFileItems(local_file_list, files);
+}
+
+bool P2PPeerNode::hasLocalFileItem(string name, int size)
+{
+	return hasFileItem(local_file_list, name, size);
+}
+
+FileItem P2PPeerNode::getLocalFileItem(string name, int size)
+{
+	return getFileItem(local_file_list, name, size);
+}
+
+FileItem P2PPeerNode::getLocalFileItem(int file_id)
+{
+	return getFileItem(local_file_list, file_id);
+}
+
+void P2PPeerNode::addFileItems(vector<FileItem> &existing_files, vector<FileItem> files_to_add)
+{
+	vector<FileItem>::iterator iter;
+	for (iter = files_to_add.begin(); iter < files_to_add.end(); iter++)
+	{
+		if (!hasFileItem(existing_files, (*iter).name, (*iter).size))
+		{
+			existing_files.push_back((*iter));
+		}
+	}
+}
+
+bool P2PPeerNode::hasFileItem(vector<FileItem> &existing_files, string name, int size)
+{
+	// A map would be a better way to store and retrieve this information..
+	vector<FileItem>::iterator iter;
+	for (iter = existing_files.begin(); iter < existing_files.end(); iter++)
+	{
+		if ((*iter).name == name && (*iter).size == size)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+FileItem P2PPeerNode::getFileItem(vector<FileItem> &existing_files, string name, int size)
+{
+	// A map would be a better way to store and retrieve this information..
 	FileItem file_item;
 	vector<FileItem>::iterator iter;
-	for (iter = local_file_list.begin(); iter != local_file_list.end(); ++iter)
+	for (iter = existing_files.begin(); iter < existing_files.end(); iter++)
+	{
+		if ((*iter).name == name && (*iter).size == size)
+		{
+			file_item = (*iter);
+			break;
+		}
+	}
+
+	return file_item;
+}
+
+FileItem P2PPeerNode::getFileItem(vector<FileItem> &existing_files, int file_id)
+{
+	// A map would be a better way to store and retrieve this information..
+	FileItem file_item;
+	vector<FileItem>::iterator iter;
+	for (iter = existing_files.begin(); iter < existing_files.end(); iter++)
 	{
 		if ((*iter).file_id == file_id)
 		{
@@ -716,5 +1034,6 @@ FileItem P2PPeerNode::getFileItem(int file_id)
 			break;
 		}
 	}
+
 	return file_item;
 }

@@ -9,7 +9,7 @@ using namespace std;
 class P2PPeerNode
 {
 	private:
-		void construct(int);
+		void construct(int, int);
 		void initialize();
 		void resetSocketDescriptors();
 		void handleNewConnectionRequest();
@@ -19,8 +19,16 @@ class P2PPeerNode
 
 		// Get File for transfer
 		void prepareFileTransferRequest(vector<string>);
-		void getFileForTransfer(int, string);
-		FileItem getFileItem(int);
+		void prepareFileTransferRequest(vector<string>, int, int);
+
+		// Stub functions
+		FileItem getFileItem(vector<FileItem>&, int);
+		void addFileItems(vector<FileItem>&, vector<FileItem>);
+		bool hasFileItem(vector<FileItem>&, string, int);
+		FileItem getFileItem(vector<FileItem>&, string, int);
+
+		FileItem getLocalFileItem(int);
+		FileItem getDownloadFileItem(int);
 
 		// Worker threads
 		static void * initiateFileTransfer(void *);
@@ -29,6 +37,9 @@ class P2PPeerNode
 		// Own socket
 		void openPrimarySocket();
 		int  bindPrimarySocket(int, int);
+
+		// Add a file to the server
+		void addFileToServer(FileItem);
 
 		// Server limits and port
 		int PORT_NUMBER;
@@ -42,6 +53,7 @@ class P2PPeerNode
 		// Message queue and file list
 		vector<P2PMessage> message_queue;
 		vector<FileItem> local_file_list;
+		vector<FileItem> download_file_list;
 
 		// Sockets
 		int primary_socket;
@@ -53,6 +65,7 @@ class P2PPeerNode
 
 		// Available sockets
 		vector<P2PSocket> socket_vector;
+		vector<int> sockets_to_close;
 
 		// Settings
 		int port_offset;
@@ -64,14 +77,18 @@ class P2PPeerNode
 
 	public:
 		P2PPeerNode();
-		P2PPeerNode(int);
+		P2PPeerNode(int, int);
 		void start();
 		void listenForActivity();
+		void monitorTransfers();
 		void setBindMaxOffset(unsigned int);
 
 		// Add and remove new connections
 		int makeConnection(string, string, int);
 		void closeSocket(int);
+		void closeSocketByName(string);
+		void queueSocketToClose(int);
+		void queueSocketToCloseByName(string);
 
 		int countSockets();
 		vector<P2PSocket> getSockets();
@@ -86,17 +103,25 @@ class P2PPeerNode
 
 		// Progress
 		string getFileProgress();
+		string analyzeFileProgress(FileItem);
 
 		// Send message to socket
 		void sendMessageToSocket(string, int);
-		void requestFileTransfer(string, int);
+		void requestFileTransfer(string, int, string, int, unsigned int, unsigned int);
 
 		// Interact with message queue
 		P2PMessage popQueueMessage();
 		int countQueueMessages();
 
-		// Interact with data queue
-		int countQueueData();
+		// Handle download files
+		void addDownloadFileItems(vector<FileItem>);
+		bool hasDownloadFileItem(string, int);
+		FileItem getDownloadFileItem(string, int);
+
+		// Handle local files
+		void addLocalFileItems(vector<FileItem>);
+		bool hasLocalFileItem(string, int);
+		FileItem getLocalFileItem(string, int);
 };
 
 #endif
