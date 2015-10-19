@@ -357,7 +357,7 @@ void P2PPeerNode::handleNewConnectionRequest()
 	}
 
 	// Report new connection
-	cout << "New Connection Request: " << inet_ntoa(client_address.sin_addr) << ":" << ntohs(client_address.sin_port) << endl;
+	//cout << "New Connection Request: " << inet_ntoa(client_address.sin_addr) << ":" << ntohs(client_address.sin_port) << endl;
 
 	// Add socket to open slot
 	for (int i = 0; i <= MAX_CONNECTIONS; i++)
@@ -418,7 +418,7 @@ void P2PPeerNode::handleExistingConnections()
 		{
 			// Report the disconnection
 			getpeername(sockets[i], (struct sockaddr*)&client_address, &client_address_length);
-			cout << "Connection closed: " << inet_ntoa(client_address.sin_addr) << ":" << ntohs(client_address.sin_port) << endl;
+			//cout << "Connection closed: " << inet_ntoa(client_address.sin_addr) << ":" << ntohs(client_address.sin_port) << endl;
 
 			// Close and free the socket
 			//queueSocketToClose(sockets[i]);
@@ -493,6 +493,9 @@ void P2PPeerNode::handleExistingConnections()
 							perror("Error: could not spawn thread");
 							//exit(1);
 						}
+
+						// Wait for the thread to obtain access to the data without freeing the memory
+						sleep(1);
 					}
 					else if (request_parsed[0].compare("fileAddress") == 0)
 					{
@@ -728,20 +731,15 @@ string P2PPeerNode::analyzeFileProgress(FileItem file_item)
 		// Get the expected number of parts
 		unsigned int size_downloaded = 0;
 
-		string filename = file_item.name;
-		string filename_trunc = filename;
-		int length_buffer = 30;
-		if (filename.length() >= P2PCommon::MAX_FILENAME_LENGTH - length_buffer)
-		{
-			filename_trunc = filename.substr(0, P2PCommon::MAX_FILENAME_LENGTH - length_buffer);
-		}
+		string filename = to_string(file_item.file_id) + ".pt.";
 
 		// See how many parts we have available
 		while ((ep = readdir(directory)) != NULL)
 		{
 			// Evaluate that each part is there
 			string this_filename = string(ep->d_name);
-			if (this_filename.compare(0, filename_trunc.length(), filename_trunc) == 0)
+			if (this_filename.compare(0, filename.length(), filename) == 0
+				&& this_filename.compare(this_filename.length() - 6, 6, ".p2pft") == 0)
 			{				
 				struct stat s;
 				string path = (P2PFileTransfer::DATA_FOLDER + '/' + this_filename);
@@ -910,7 +908,6 @@ void * P2PPeerNode::initiateFileTransfer(void * arg)
 {
 	// Revive the packet
 	FileDataRequest * request = static_cast<FileDataRequest *>(arg);
-	//cerr << "initiateFileTransfer path: " << request->file_item.path << endl;
 
 	P2PFileTransfer file_transfer;
 	file_transfer.setBounds(request->start, request->count);
@@ -929,7 +926,7 @@ void * P2PPeerNode::handleFileTransfer(void * arg)
 	P2PFileTransfer file_transfer;
 	file_transfer.handleIncomingFileTransfer(*packet);
 
-	delete[] (*packet).packet;
+	//delete[] (*packet).packet;
 	pthread_exit(NULL);
 }
 

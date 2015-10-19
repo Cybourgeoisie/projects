@@ -22,7 +22,6 @@ void P2PFileTransfer::startTransferFile(FileItem file_item, int socket_id)
 	// Get the file ID and path
 	int file_id = file_item.file_id;
 	string path = file_item.path;
-	//cerr << "startTransferFile path: " << file_item.path << endl;
 
 	// Get the filename
 	string filename = file_item.name;
@@ -62,7 +61,7 @@ void P2PFileTransfer::startTransferFile(FileItem file_item, int socket_id)
 		unsigned int i = 0;
 		unsigned int total = num_chunks;
 
-		if (start > 0 && start < num_chunks)
+		if (start > 0 && start <= num_chunks)
 			i = start;
 
 		if (count > 0 && (count+i) <= num_chunks)
@@ -70,7 +69,7 @@ void P2PFileTransfer::startTransferFile(FileItem file_item, int socket_id)
 
 		// Start at the proper location
 		if (i > 0)
-			input_stream.seekg(i * FILE_CHUNK_SIZE);
+			input_stream.seekg((i-1) * FILE_CHUNK_SIZE);
 	
 		while (i <= total)
 		{
