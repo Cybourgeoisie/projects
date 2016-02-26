@@ -1,5 +1,5 @@
 # projects
 
 Some grad school class projects. Among them:
-- Peer-to-peer file sharing network in C
+- Command line peer-to-peer file sharing network
 - A distance vector implementation for decentralized network cost computations
