@@ -172,7 +172,7 @@ bool calculatePaths(struct distance_table * dt, struct link_costs * ln,
     printf("rtupdate%d: sending out packets to neighbors with new values: [%d,%d,%d,%d]\r\n", 
       node_id, dt->costs[0][node_id], dt->costs[1][node_id], dt->costs[2][node_id], dt->costs[3][node_id]);
 
-    // Deliver packages to other nodes
+    // Deliver packets to other nodes
     sendPackets(dt, rt, nb, node_id);
   }
 

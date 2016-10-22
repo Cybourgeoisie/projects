@@ -87,7 +87,7 @@ main()
           printf("MAIN: rcv event, t=%.3f, at %d",
                           eventptr->evtime,eventptr->eventity);
           if (eventptr->evtype == FROM_LAYER2 ) {
-	    printf(" src:%2d,",eventptr->rtpktptr->sourceid);
+      printf(" src:%2d,",eventptr->rtpktptr->sourceid);
             printf(" dest:%2d,",eventptr->rtpktptr->destid);
             printf(" contents: %3d %3d %3d %3d\n", 
               eventptr->rtpktptr->mincost[0], eventptr->rtpktptr->mincost[1],
@@ -97,25 +97,25 @@ main()
         clocktime = eventptr->evtime;    /* update time to next event time */
         if (eventptr->evtype == FROM_LAYER2 ) {
             if (eventptr->eventity == 0) 
-	      rtupdate0(eventptr->rtpktptr);
-	     else if (eventptr->eventity == 1) 
-	      rtupdate1(eventptr->rtpktptr);
-	     else if (eventptr->eventity == 2) 
-	      rtupdate2(eventptr->rtpktptr);
-	     else if (eventptr->eventity == 3) 
-	      rtupdate3(eventptr->rtpktptr);
+        rtupdate0(eventptr->rtpktptr);
+       else if (eventptr->eventity == 1) 
+        rtupdate1(eventptr->rtpktptr);
+       else if (eventptr->eventity == 2) 
+        rtupdate2(eventptr->rtpktptr);
+       else if (eventptr->eventity == 3) 
+        rtupdate3(eventptr->rtpktptr);
              else { printf("Panic: unknown event entity\n"); exit(0); }
-	  }
+    }
         else if (eventptr->evtype == LINK_CHANGE ) {
             if (clocktime<10001.0) {
-	      linkhandler0(1,20);
-	      linkhandler1(0,20);
+        linkhandler0(1,20);
+        linkhandler1(0,20);
               }
-	    else   {
-    	      linkhandler0(1,1);
-	      linkhandler1(0,1);
+      else   {
+            linkhandler0(1,1);
+        linkhandler1(0,1);
               }
-	  }
+    }
           else
              { printf("Panic: unknown event type\n"); exit(0); }
         if (eventptr->evtype == FROM_LAYER2 ) 
@@ -149,7 +149,7 @@ init()                         /* initialize the simulator */
     printf("It is likely that random number generation on your machine\n" ); 
     printf("is different from what this emulator expects.  Please take\n");
     printf("a look at the routine jimsrand() in the emulator code. Sorry. \n");
-    exit(1); // RBH - previously exit(), but would not compile
+    exit(1); // RBH - changed from exit(); because it would not compile
     }
 
    clocktime=0.0;                /* initialize time to 0.0 */
@@ -267,19 +267,19 @@ tolayer2(packet)
  /* be nice: check if source and destination id's are reasonable */
  if (packet.sourceid<0 || packet.sourceid >3) {
    printf("WARNING: illegal source id in your packet, ignoring packet!\n");
-   exit(1); // RBH - previously return; but would not compile
+   exit(1); // RBH - changed from return;, because it would not compile
    }
  if (packet.destid<0 || packet.destid >3) {
    printf("WARNING: illegal dest id in your packet, ignoring packet!\n");
-   exit(1); // RBH - previously return; but would not compile
+   exit(1); // RBH - changed from return;, because it would not compile
    }
  if (packet.sourceid == packet.destid)  {
    printf("WARNING: source and destination id's the same, ignoring packet!\n");
-   exit(1); // RBH - previously return; but would not compile
+   exit(1); // RBH - changed from return;, because it would not compile
    }
  if (connectcosts[packet.sourceid][packet.destid] == 999)  {
    printf("WARNING: source and destination not connected, ignoring packet!\n");
-   exit(1); // RBH - previously return; but would not compile
+   exit(1); // RBH - changed from return;, because it would not compile
    }
 
 /* make a copy of the packet student just gave me since he/she may decide */

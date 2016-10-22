@@ -1,0 +1,803 @@
+Enter TRACE:rtinit0 called at 0.000000
+rtinit1 called at 0.000000
+rtinit2 called at 0.000000
+rtinit3 called at 0.000000
+MAIN: rcv event, t=0.420, at 3 src: 0, dest: 3, contents:   0   1   3   7
+rtupdate3 called by node #0 at 0.420240
+rtupdate3: cost to node #0 updated to 7
+rtupdate3: cost to node #1 updated to 8
+rtupdate3: cost to node #2 updated to 10
+rtupdate3: sending out packets to neighbors with new values: [7,8,10,0]
+rtupdate3: distance table was updated.
+             via     
+   D3 |    0     2 
+  ----|-----------
+     0|    0   999
+dest 1|    1   999
+     2|    3   999
+MAIN: rcv event, t=0.689, at 3 src: 2, dest: 3, contents:   3   1   0   2
+rtupdate3 called by node #2 at 0.689229
+rtupdate3: cost to node #0 updated to 5
+rtupdate3: cost to node #1 updated to 3
+rtupdate3: cost to node #2 updated to 2
+rtupdate3: sending out packets to neighbors with new values: [5,3,2,0]
+rtupdate3: distance table was updated.
+             via     
+   D3 |    0     2 
+  ----|-----------
+     0|    0     3
+dest 1|    1     1
+     2|    3     0
+MAIN: rcv event, t=0.697, at 1 src: 0, dest: 1, contents:   0   1   3   7
+rtupdate1 called by node #0 at 0.696571
+rtupdate1: cost to node #0 updated to 1
+rtupdate1: cost to node #2 updated to 4
+rtupdate1: cost to node #3 updated to 8
+rtupdate1: sending out packets to neighbors with new values: [1,0,4,8]
+rtupdate1: distance table was updated.
+             via   
+   D1 |    0     2 
+  ----|-----------
+     0|    0   999
+dest 2|    3   999
+     3|    7   999
+MAIN: rcv event, t=0.980, at 0 src: 1, dest: 0, contents:   1   0   1 999
+rtupdate0 called by node #1 at 0.979755
+rtupdate0: cost to node #1 updated to 1
+rtupdate0: cost to node #2 updated to 2
+rtupdate0: cost to node #1 updated to 999
+rtupdate0: sending out packets to neighbors with new values: [0,999,2,7]
+rtupdate0: distance table was updated.
+                via     
+   D0 |    1     2    3 
+  ----|-----------------
+     1|    0   999   999
+dest 2|    1   999   999
+     3|  999   999   999
+MAIN: rcv event, t=1.270, at 2 src: 0, dest: 2, contents:   0   1   3   7
+rtupdate2 called by node #0 at 1.269615
+rtupdate2: cost to node #0 updated to 3
+rtupdate2: cost to node #1 updated to 4
+rtupdate2: cost to node #3 updated to 10
+rtupdate2: sending out packets to neighbors with new values: [3,4,0,10]
+rtupdate2: distance table was updated.
+                via     
+   D2 |    0     1    3 
+  ----|-----------------
+     0|    0   999   999
+dest 1|    1   999   999
+     3|    7   999   999
+MAIN: rcv event, t=1.532, at 1 src: 2, dest: 1, contents:   3   1   0   2
+rtupdate1 called by node #2 at 1.531715
+rtupdate1: cost to node #2 updated to 1
+rtupdate1: cost to node #3 updated to 3
+rtupdate1: sending out packets to neighbors with new values: [1,0,1,3]
+rtupdate1: distance table was updated.
+             via   
+   D1 |    0     2 
+  ----|-----------
+     0|    0     3
+dest 2|    3     0
+     3|    7     2
+MAIN: rcv event, t=2.007, at 2 src: 1, dest: 2, contents:   1   0   1 999
+rtupdate2 called by node #1 at 2.006996
+rtupdate2: cost to node #0 updated to 2
+rtupdate2: cost to node #1 updated to 1
+rtupdate2: sending out packets to neighbors with new values: [2,1,0,10]
+rtupdate2: distance table was updated.
+                via     
+   D2 |    0     1    3 
+  ----|-----------------
+     0|    0     1   999
+dest 1|    1     0   999
+     3|    7   999   999
+MAIN: rcv event, t=2.147, at 0 src: 2, dest: 0, contents:   3   1   0   2
+rtupdate0 called by node #2 at 2.146580
+rtupdate0: cost to node #1 updated to 1
+rtupdate0: cost to node #3 updated to 5
+rtupdate0: sending out packets to neighbors with new values: [0,1,2,5]
+rtupdate0: distance table was updated.
+                via     
+   D0 |    1     2    3 
+  ----|-----------------
+     1|    0     1   999
+dest 2|    1     0   999
+     3|  999     2   999
+MAIN: rcv event, t=2.336, at 1 src: 0, dest: 1, contents:   0 999 999   7
+rtupdate1 called by node #0 at 2.336139
+rtupdate1: distance table was updated.
+             via   
+   D1 |    0     2 
+  ----|-----------
+     0|    0     3
+dest 2|  999     0
+     3|    7     2
+MAIN: rcv event, t=2.786, at 3 src: 0, dest: 3, contents:   0 999   2   7
+rtupdate3 called by node #0 at 2.785671
+rtupdate3: distance table was updated.
+             via     
+   D3 |    0     2 
+  ----|-----------
+     0|    0     3
+dest 1|  999     1
+     2|    2     0
+MAIN: rcv event, t=3.045, at 0 src: 3, dest: 0, contents:   7 999   2   0
+rtupdate0 called by node #3 at 3.044635
+rtupdate0: distance table was updated.
+                via     
+   D0 |    1     2    3 
+  ----|-----------------
+     1|    0     1   999
+dest 2|    1     0     2
+     3|  999     2     0
+MAIN: rcv event, t=3.613, at 2 src: 3, dest: 2, contents:   7 999   2   0
+rtupdate2 called by node #3 at 3.612869
+rtupdate2: cost to node #3 updated to 2
+rtupdate2: sending out packets to neighbors with new values: [2,1,0,2]
+rtupdate2: distance table was updated.
+                via     
+   D2 |    0     1    3 
+  ----|-----------------
+     0|    0     1     7
+dest 1|    1     0   999
+     3|    7   999     0
+MAIN: rcv event, t=4.106, at 1 src: 2, dest: 1, contents:   3   4   0  10
+rtupdate1 called by node #2 at 4.106314
+rtupdate1: cost to node #3 updated to 8
+rtupdate1: sending out packets to neighbors with new values: [1,0,1,8]
+rtupdate1: distance table was updated.
+             via   
+   D1 |    0     2 
+  ----|-----------
+     0|    0     3
+dest 2|  999     0
+     3|    7    10
+MAIN: rcv event, t=4.109, at 3 src: 2, dest: 3, contents:   3   4   0  10
+rtupdate3 called by node #2 at 4.108640
+rtupdate3: cost to node #1 updated to 6
+rtupdate3: sending out packets to neighbors with new values: [5,6,2,0]
+rtupdate3: distance table was updated.
+             via     
+   D3 |    0     2 
+  ----|-----------
+     0|    0     3
+dest 1|  999     4
+     2|    2     0
+MAIN: rcv event, t=4.940, at 0 src: 3, dest: 0, contents:   7 999 999   0
+rtupdate0 called by node #3 at 4.939775
+rtupdate0: distance table was updated.
+                via     
+   D0 |    1     2    3 
+  ----|-----------------
+     1|    0     1   999
+dest 2|    1     0   999
+     3|  999     2     0
+MAIN: rcv event, t=5.234, at 2 src: 3, dest: 2, contents:   7   8  10   0
+rtupdate2 called by node #3 at 5.233879
+rtupdate2: distance table was updated.
+                via     
+   D2 |    0     1    3 
+  ----|-----------------
+     0|    0     1     7
+dest 1|    1     0     8
+     3|    7   999     0
+MAIN: rcv event, t=5.264, at 0 src: 3, dest: 0, contents:   5   3   2   0
+rtupdate0 called by node #3 at 5.264279
+rtupdate0: distance table was updated.
+                via     
+   D0 |    1     2    3 
+  ----|-----------------
+     1|    0     1     3
+dest 2|    1     0     2
+     3|  999     2     0
+MAIN: rcv event, t=5.291, at 1 src: 2, dest: 1, contents: 999   1   0  10
+rtupdate1 called by node #2 at 5.291144
+rtupdate1: distance table was updated.
+             via   
+   D1 |    0     2 
+  ----|-----------
+     0|    0   999
+dest 2|  999     0
+     3|    7    10
+MAIN: rcv event, t=5.557, at 3 src: 2, dest: 3, contents:   2   1   0  10
+rtupdate3 called by node #2 at 5.556911
+rtupdate3: cost to node #0 updated to 4
+rtupdate3: cost to node #1 updated to 3
+rtupdate3: sending out packets to neighbors with new values: [4,3,2,0]
+rtupdate3: distance table was updated.
+             via     
+   D3 |    0     2 
+  ----|-----------
+     0|    0     2
+dest 1|  999     1
+     2|    2     0
+MAIN: rcv event, t=6.367, at 1 src: 0, dest: 1, contents:   0   1 999   5
+rtupdate1 called by node #0 at 6.367355
+rtupdate1: cost to node #3 updated to 6
+rtupdate1: sending out packets to neighbors with new values: [1,0,1,6]
+rtupdate1: distance table was updated.
+             via   
+   D1 |    0     2 
+  ----|-----------
+     0|    0   999
+dest 2|  999     0
+     3|    5    10
+MAIN: rcv event, t=6.416, at 1 src: 2, dest: 1, contents: 999   1   0   2
+rtupdate1 called by node #2 at 6.415540
+rtupdate1: cost to node #3 updated to 3
+rtupdate1: sending out packets to neighbors with new values: [1,0,1,3]
+rtupdate1: distance table was updated.
+             via   
+   D1 |    0     2 
+  ----|-----------
+     0|    0   999
+dest 2|  999     0
+     3|    5     2
+MAIN: rcv event, t=6.862, at 3 src: 0, dest: 3, contents:   0   1   2   5
+rtupdate3 called by node #0 at 6.862413
+rtupdate3: distance table was updated.
+             via     
+   D3 |    0     2 
+  ----|-----------
+     0|    0     2
+dest 1|    1     1
+     2|    2     0
+MAIN: rcv event, t=6.887, at 0 src: 1, dest: 0, contents:   1   0 999 999
+rtupdate0 called by node #1 at 6.886930
+rtupdate0: cost to node #2 updated to 3
+rtupdate0: sending out packets to neighbors with new values: [0,1,3,5]
+rtupdate0: distance table was updated.
+                via     
+   D0 |    1     2    3 
+  ----|-----------------
+     1|    0     1     3
+dest 2|  999     0     2
+     3|  999     2     0
+MAIN: rcv event, t=6.921, at 0 src: 2, dest: 0, contents:   3 999   0 999
+rtupdate0 called by node #2 at 6.921307
+rtupdate0: cost to node #3 updated to 7
+rtupdate0: sending out packets to neighbors with new values: [0,1,3,7]
+rtupdate0: distance table was updated.
+                via     
+   D0 |    1     2    3 
+  ----|-----------------
+     1|    0   999     3
+dest 2|  999     0     2
+     3|  999   999     0
+MAIN: rcv event, t=7.168, at 2 src: 3, dest: 2, contents: 999 999   2   0
+rtupdate2 called by node #3 at 7.167932
+rtupdate2: distance table was updated.
+                via     
+   D2 |    0     1    3 
+  ----|-----------------
+     0|    0     1   999
+dest 1|    1     0   999
+     3|    7   999     0
+MAIN: rcv event, t=7.647, at 1 src: 0, dest: 1, contents:   0   1   3   5
+rtupdate1 called by node #0 at 7.646819
+rtupdate1: distance table was updated.
+             via   
+   D1 |    0     2 
+  ----|-----------
+     0|    0   999
+dest 2|    3     0
+     3|    5     2
+MAIN: rcv event, t=8.070, at 0 src: 1, dest: 0, contents:   1   0   1   3
+rtupdate0 called by node #1 at 8.070110
+rtupdate0: cost to node #2 updated to 2
+rtupdate0: cost to node #3 updated to 4
+rtupdate0: sending out packets to neighbors with new values: [0,1,2,4]
+rtupdate0: distance table was updated.
+                via     
+   D0 |    1     2    3 
+  ----|-----------------
+     1|    0   999     3
+dest 2|    1     0     2
+     3|    3   999     0
+MAIN: rcv event, t=8.073, at 0 src: 2, dest: 0, contents:   2   1   0 999
+rtupdate0 called by node #2 at 8.073155
+rtupdate0: distance table was updated.
+                via     
+   D0 |    1     2    3 
+  ----|-----------------
+     1|    0     1     3
+dest 2|    1     0     2
+     3|    3   999     0
+MAIN: rcv event, t=8.151, at 1 src: 0, dest: 1, contents:   0   1   3   7
+rtupdate1 called by node #0 at 8.150746
+rtupdate1: distance table was updated.
+             via   
+   D1 |    0     2 
+  ----|-----------
+     0|    0   999
+dest 2|    3     0
+     3|    7     2
+MAIN: rcv event, t=8.231, at 1 src: 0, dest: 1, contents:   0   1 999 999
+rtupdate1 called by node #0 at 8.230683
+rtupdate1: distance table was updated.
+             via   
+   D1 |    0     2 
+  ----|-----------
+     0|    0   999
+dest 2|  999     0
+     3|  999     2
+MAIN: rcv event, t=8.696, at 3 src: 2, dest: 3, contents:   2   1   0   2
+rtupdate3 called by node #2 at 8.696239
+rtupdate3: distance table was updated.
+             via     
+   D3 |    0     2 
+  ----|-----------
+     0|    0     2
+dest 1|    1     1
+     2|    2     0
+MAIN: rcv event, t=9.009, at 3 src: 0, dest: 3, contents:   0   1   3   5
+rtupdate3 called by node #0 at 9.008519
+rtupdate3: distance table was updated.
+             via     
+   D3 |    0     2 
+  ----|-----------
+     0|    0     2
+dest 1|    1     1
+     2|    3     0
+MAIN: rcv event, t=9.069, at 2 src: 1, dest: 2, contents:   1   0   4   8
+rtupdate2 called by node #1 at 9.068616
+rtupdate2: distance table was updated.
+                via     
+   D2 |    0     1    3 
+  ----|-----------------
+     0|    0     1   999
+dest 1|    1     0   999
+     3|    7     8     0
+MAIN: rcv event, t=9.662, at 0 src: 2, dest: 0, contents:   2   1   0   2
+rtupdate0 called by node #2 at 9.661782
+rtupdate0: distance table was updated.
+                via     
+   D0 |    1     2    3 
+  ----|-----------------
+     1|    0     1     3
+dest 2|    1     0     2
+     3|    3     2     0
+MAIN: rcv event, t=10.345, at 3 src: 0, dest: 3, contents:   0   1   3   7
+rtupdate3 called by node #0 at 10.344991
+rtupdate3: distance table was updated.
+             via     
+   D3 |    0     2 
+  ----|-----------
+     0|    0     2
+dest 1|    1     1
+     2|    3     0
+MAIN: rcv event, t=10.762, at 0 src: 1, dest: 0, contents:   1   0   1 999
+rtupdate0 called by node #1 at 10.762181
+rtupdate0: cost to node #3 updated to 5
+rtupdate0: sending out packets to neighbors with new values: [0,1,2,5]
+rtupdate0: distance table was updated.
+                via     
+   D0 |    1     2    3 
+  ----|-----------------
+     1|    0     1     3
+dest 2|    1     0     2
+     3|  999     2     0
+MAIN: rcv event, t=11.022, at 2 src: 0, dest: 2, contents:   0 999   2   7
+rtupdate2 called by node #0 at 11.021600
+rtupdate2: distance table was updated.
+                via     
+   D2 |    0     1    3 
+  ----|-----------------
+     0|    0     1   999
+dest 1|  999     0   999
+     3|    7     8     0
+MAIN: rcv event, t=11.145, at 3 src: 0, dest: 3, contents:   0   1   2   4
+rtupdate3 called by node #0 at 11.144860
+rtupdate3: distance table was updated.
+             via     
+   D3 |    0     2 
+  ----|-----------
+     0|    0     2
+dest 1|    1     1
+     2|    2     0
+MAIN: rcv event, t=11.290, at 3 src: 0, dest: 3, contents:   0   1   2   5
+rtupdate3 called by node #0 at 11.289677
+rtupdate3: distance table was updated.
+             via     
+   D3 |    0     2 
+  ----|-----------
+     0|    0     2
+dest 1|    1     1
+     2|    2     0
+MAIN: rcv event, t=12.164, at 1 src: 0, dest: 1, contents:   0   1 999   5
+rtupdate1 called by node #0 at 12.163726
+rtupdate1: distance table was updated.
+             via   
+   D1 |    0     2 
+  ----|-----------
+     0|    0   999
+dest 2|  999     0
+     3|    5     2
+MAIN: rcv event, t=12.757, at 0 src: 3, dest: 0, contents:   5   6   2   0
+rtupdate0 called by node #3 at 12.757065
+rtupdate0: distance table was updated.
+                via     
+   D0 |    1     2    3 
+  ----|-----------------
+     1|    0     1     6
+dest 2|    1     0     2
+     3|  999     2     0
+MAIN: rcv event, t=12.961, at 2 src: 1, dest: 2, contents:   1   0   1 999
+rtupdate2 called by node #1 at 12.960554
+rtupdate2: distance table was updated.
+                via     
+   D2 |    0     1    3 
+  ----|-----------------
+     0|    0     1   999
+dest 1|  999     0   999
+     3|    7   999     0
+MAIN: rcv event, t=14.007, at 0 src: 3, dest: 0, contents:   4   3   2   0
+rtupdate0 called by node #3 at 14.006976
+rtupdate0: distance table was updated.
+                via     
+   D0 |    1     2    3 
+  ----|-----------------
+     1|    0     1     3
+dest 2|    1     0     2
+     3|  999     2     0
+MAIN: rcv event, t=14.839, at 2 src: 0, dest: 2, contents:   0   1   2 999
+rtupdate2 called by node #0 at 14.838540
+rtupdate2: distance table was updated.
+                via     
+   D2 |    0     1    3 
+  ----|-----------------
+     0|    0     1   999
+dest 1|    1     0   999
+     3|  999   999     0
+MAIN: rcv event, t=15.243, at 2 src: 1, dest: 2, contents:   1   0   1   8
+rtupdate2 called by node #1 at 15.243252
+rtupdate2: distance table was updated.
+                via     
+   D2 |    0     1    3 
+  ----|-----------------
+     0|    0     1   999
+dest 1|    1     0   999
+     3|  999     8     0
+MAIN: rcv event, t=15.249, at 2 src: 3, dest: 2, contents: 999 999   2   0
+rtupdate2 called by node #3 at 15.248562
+rtupdate2: distance table was not updated.
+MAIN: rcv event, t=15.666, at 0 src: 1, dest: 0, contents:   1   0   1 999
+rtupdate0 called by node #1 at 15.666326
+rtupdate0: distance table was not updated.
+MAIN: rcv event, t=16.511, at 2 src: 3, dest: 2, contents: 999 999   2   0
+rtupdate2 called by node #3 at 16.510872
+rtupdate2: distance table was not updated.
+MAIN: rcv event, t=16.853, at 0 src: 1, dest: 0, contents:   1   0   1   3
+rtupdate0 called by node #1 at 16.853361
+rtupdate0: cost to node #3 updated to 4
+rtupdate0: sending out packets to neighbors with new values: [0,1,2,4]
+rtupdate0: distance table was updated.
+                via     
+   D0 |    1     2    3 
+  ----|-----------------
+     1|    0     1     3
+dest 2|    1     0     2
+     3|    3     2     0
+MAIN: rcv event, t=17.201, at 2 src: 1, dest: 2, contents:   1   0   1   6
+rtupdate2 called by node #1 at 17.200893
+rtupdate2: distance table was updated.
+                via     
+   D2 |    0     1    3 
+  ----|-----------------
+     0|    0     1   999
+dest 1|    1     0   999
+     3|  999     6     0
+MAIN: rcv event, t=17.708, at 2 src: 1, dest: 2, contents:   1   0   1 999
+rtupdate2 called by node #1 at 17.708227
+rtupdate2: distance table was updated.
+                via     
+   D2 |    0     1    3 
+  ----|-----------------
+     0|    0     1   999
+dest 1|    1     0   999
+     3|  999   999     0
+MAIN: rcv event, t=18.030, at 3 src: 0, dest: 3, contents:   0   1   2   4
+rtupdate3 called by node #0 at 18.029669
+rtupdate3: distance table was updated.
+             via     
+   D3 |    0     2 
+  ----|-----------
+     0|    0     2
+dest 1|    1     1
+     2|    2     0
+MAIN: rcv event, t=18.780, at 1 src: 0, dest: 1, contents:   0   1 999 999
+rtupdate1 called by node #0 at 18.780163
+rtupdate1: distance table was updated.
+             via   
+   D1 |    0     2 
+  ----|-----------
+     0|    0   999
+dest 2|  999     0
+     3|  999     2
+MAIN: rcv event, t=19.150, at 2 src: 0, dest: 2, contents:   0   1   3 999
+rtupdate2 called by node #0 at 19.150026
+rtupdate2: distance table was updated.
+                via     
+   D2 |    0     1    3 
+  ----|-----------------
+     0|    0     1   999
+dest 1|    1     0   999
+     3|  999   999     0
+MAIN: rcv event, t=20.665, at 2 src: 0, dest: 2, contents:   0   1   3   7
+rtupdate2 called by node #0 at 20.665188
+rtupdate2: distance table was updated.
+                via     
+   D2 |    0     1    3 
+  ----|-----------------
+     0|    0     1   999
+dest 1|    1     0   999
+     3|    7   999     0
+MAIN: rcv event, t=22.163, at 2 src: 0, dest: 2, contents:   0   1   2   4
+rtupdate2 called by node #0 at 22.163183
+rtupdate2: distance table was updated.
+                via     
+   D2 |    0     1    3 
+  ----|-----------------
+     0|    0     1   999
+dest 1|    1     0   999
+     3|    4   999     0
+MAIN: rcv event, t=23.925, at 2 src: 0, dest: 2, contents:   0   1   2 999
+rtupdate2 called by node #0 at 23.924957
+rtupdate2: distance table was updated.
+                via     
+   D2 |    0     1    3 
+  ----|-----------------
+     0|    0     1   999
+dest 1|    1     0   999
+     3|  999   999     0
+MAIN: rcv event, t=25.690, at 2 src: 0, dest: 2, contents:   0   1   2   4
+rtupdate2 called by node #0 at 25.690006
+rtupdate2: distance table was updated.
+                via     
+   D2 |    0     1    3 
+  ----|-----------------
+     0|    0     1   999
+dest 1|    1     0   999
+     3|    4   999     0
+MAIN: rcv event, t=10000.000, at -1linkhandler0: new values: [0,20,2,4]
+rtupdate0: cost to node #1 updated to 4
+rtupdate0: cost to node #2 updated to 3
+rtupdate0: cost to node #3 updated to 5
+rtupdate0: sending out packets to neighbors with new values: [0,4,3,5]
+linkhandler0: distance table was updated - cost to 1 is now 20.
+                via     
+   D0 |    1     2    3 
+  ----|-----------------
+     1|    0     1     3
+dest 2|    1     0     2
+     3|    3     2     0
+linkhandler1: new values: [20,0,1,3]
+rtupdate1: cost to node #0 updated to 20
+rtupdate1: sending out packets to neighbors with new values: [20,0,1,3]
+linkhandler1: distance table was updated - cost to 0 is now 20.
+             via   
+   D1 |    0     2 
+  ----|-----------
+     0|    0   999
+dest 2|  999     0
+     3|  999     2
+MAIN: rcv event, t=10000.198, at 1 src: 0, dest: 1, contents:   0   4   3   5
+rtupdate1 called by node #0 at 10000.198242
+rtupdate1: distance table was updated.
+             via   
+   D1 |    0     2 
+  ----|-----------
+     0|    0   999
+dest 2|    3     0
+     3|    5     2
+MAIN: rcv event, t=10000.601, at 0 src: 1, dest: 0, contents:  20   0   1   3
+rtupdate0 called by node #1 at 10000.600586
+rtupdate0: distance table was updated.
+                via     
+   D0 |    1     2    3 
+  ----|-----------------
+     1|    0     1     3
+dest 2|    1     0     2
+     3|    3     2     0
+MAIN: rcv event, t=10000.857, at 2 src: 0, dest: 2, contents:   0 999   3 999
+rtupdate2 called by node #0 at 10000.857422
+rtupdate2: distance table was updated.
+                via     
+   D2 |    0     1    3 
+  ----|-----------------
+     0|    0     1   999
+dest 1|  999     0   999
+     3|  999   999     0
+MAIN: rcv event, t=10001.594, at 3 src: 0, dest: 3, contents:   0   4   3   5
+rtupdate3 called by node #0 at 10001.593750
+rtupdate3: distance table was updated.
+             via     
+   D3 |    0     2 
+  ----|-----------
+     0|    0     2
+dest 1|    4     1
+     2|    3     0
+MAIN: rcv event, t=10001.743, at 2 src: 1, dest: 2, contents:  20   0   1 999
+rtupdate2 called by node #1 at 10001.743164
+rtupdate2: cost to node #0 updated to 3
+rtupdate2: sending out packets to neighbors with new values: [3,1,0,2]
+rtupdate2: distance table was updated.
+                via     
+   D2 |    0     1    3 
+  ----|-----------------
+     0|    0    20   999
+dest 1|  999     0   999
+     3|  999   999     0
+MAIN: rcv event, t=10001.814, at 0 src: 2, dest: 0, contents:   3   1   0   2
+rtupdate0 called by node #2 at 10001.814453
+rtupdate0: distance table was updated.
+                via     
+   D0 |    1     2    3 
+  ----|-----------------
+     1|    0     1     3
+dest 2|    1     0     2
+     3|    3     2     0
+MAIN: rcv event, t=10001.913, at 3 src: 2, dest: 3, contents:   3   1   0   2
+rtupdate3 called by node #2 at 10001.913086
+rtupdate3: cost to node #0 updated to 5
+rtupdate3: sending out packets to neighbors with new values: [5,3,2,0]
+rtupdate3: distance table was updated.
+             via     
+   D3 |    0     2 
+  ----|-----------
+     0|    0     3
+dest 1|    4     1
+     2|    3     0
+MAIN: rcv event, t=10001.947, at 0 src: 3, dest: 0, contents:   5   3   2   0
+rtupdate0 called by node #3 at 10001.947266
+rtupdate0: distance table was updated.
+                via     
+   D0 |    1     2    3 
+  ----|-----------------
+     1|    0     1     3
+dest 2|    1     0     2
+     3|    3     2     0
+MAIN: rcv event, t=10002.186, at 1 src: 2, dest: 1, contents:   3   1   0   2
+rtupdate1 called by node #2 at 10002.185547
+rtupdate1: cost to node #0 updated to 4
+rtupdate1: sending out packets to neighbors with new values: [4,0,1,3]
+rtupdate1: distance table was updated.
+             via   
+   D1 |    0     2 
+  ----|-----------
+     0|    0     3
+dest 2|    3     0
+     3|    5     2
+MAIN: rcv event, t=10003.508, at 0 src: 1, dest: 0, contents:   4   0   1   3
+rtupdate0 called by node #1 at 10003.507812
+rtupdate0: distance table was updated.
+                via     
+   D0 |    1     2    3 
+  ----|-----------------
+     1|    0     1     3
+dest 2|    1     0     2
+     3|    3     2     0
+MAIN: rcv event, t=10003.622, at 2 src: 3, dest: 2, contents: 999 999   2   0
+rtupdate2 called by node #3 at 10003.622070
+rtupdate2: distance table was not updated.
+MAIN: rcv event, t=10004.374, at 2 src: 1, dest: 2, contents: 999   0   1 999
+rtupdate2 called by node #1 at 10004.374023
+rtupdate2: distance table was updated.
+                via     
+   D2 |    0     1    3 
+  ----|-----------------
+     0|    0   999   999
+dest 1|  999     0   999
+     3|  999   999     0
+MAIN: rcv event, t=20000.000, at 0linkhandler0: new values: [0,1,3,5]
+rtupdate0: cost to node #1 updated to 1
+rtupdate0: cost to node #2 updated to 2
+rtupdate0: cost to node #3 updated to 4
+rtupdate0: sending out packets to neighbors with new values: [0,1,2,4]
+linkhandler0: distance table was updated - cost to 1 is now 1.
+                via     
+   D0 |    1     2    3 
+  ----|-----------------
+     1|    0     1     3
+dest 2|    1     0     2
+     3|    3     2     0
+linkhandler1: new values: [1,0,1,3]
+rtupdate1: cost to node #0 updated to 1
+rtupdate1: sending out packets to neighbors with new values: [1,0,1,3]
+linkhandler1: distance table was updated - cost to 0 is now 1.
+             via   
+   D1 |    0     2 
+  ----|-----------
+     0|    0     3
+dest 2|    3     0
+     3|    5     2
+MAIN: rcv event, t=20000.273, at 0 src: 1, dest: 0, contents:   1   0   1   3
+rtupdate0 called by node #1 at 20000.273438
+rtupdate0: distance table was updated.
+                via     
+   D0 |    1     2    3 
+  ----|-----------------
+     1|    0     1     3
+dest 2|    1     0     2
+     3|    3     2     0
+MAIN: rcv event, t=20001.086, at 3 src: 0, dest: 3, contents:   0   1   2   4
+rtupdate3 called by node #0 at 20001.085938
+rtupdate3: distance table was updated.
+             via     
+   D3 |    0     2 
+  ----|-----------
+     0|    0     3
+dest 1|    1     1
+     2|    2     0
+MAIN: rcv event, t=20001.164, at 1 src: 0, dest: 1, contents:   0   1 999 999
+rtupdate1 called by node #0 at 20001.164062
+rtupdate1: distance table was updated.
+             via   
+   D1 |    0     2 
+  ----|-----------
+     0|    0     3
+dest 2|  999     0
+     3|  999     2
+MAIN: rcv event, t=20001.375, at 2 src: 0, dest: 2, contents:   0   1   2   4
+rtupdate2 called by node #0 at 20001.375000
+rtupdate2: distance table was updated.
+                via     
+   D2 |    0     1    3 
+  ----|-----------------
+     0|    0   999   999
+dest 1|    1     0   999
+     3|    4   999     0
+MAIN: rcv event, t=20002.916, at 2 src: 1, dest: 2, contents:   1   0   1 999
+rtupdate2 called by node #1 at 20002.916016
+rtupdate2: cost to node #0 updated to 2
+rtupdate2: sending out packets to neighbors with new values: [2,1,0,2]
+rtupdate2: distance table was updated.
+                via     
+   D2 |    0     1    3 
+  ----|-----------------
+     0|    0     1   999
+dest 1|    1     0   999
+     3|    4   999     0
+MAIN: rcv event, t=20003.125, at 3 src: 2, dest: 3, contents:   2   1   0   2
+rtupdate3 called by node #2 at 20003.125000
+rtupdate3: cost to node #0 updated to 4
+rtupdate3: sending out packets to neighbors with new values: [4,3,2,0]
+rtupdate3: distance table was updated.
+             via     
+   D3 |    0     2 
+  ----|-----------
+     0|    0     2
+dest 1|    1     1
+     2|    2     0
+MAIN: rcv event, t=20003.334, at 2 src: 3, dest: 2, contents: 999 999   2   0
+rtupdate2 called by node #3 at 20003.333984
+rtupdate2: distance table was not updated.
+MAIN: rcv event, t=20003.555, at 0 src: 2, dest: 0, contents:   2   1   0   2
+rtupdate0 called by node #2 at 20003.554688
+rtupdate0: distance table was updated.
+                via     
+   D0 |    1     2    3 
+  ----|-----------------
+     1|    0     1     3
+dest 2|    1     0     2
+     3|    3     2     0
+MAIN: rcv event, t=20003.590, at 1 src: 2, dest: 1, contents: 999   1   0   2
+rtupdate1 called by node #2 at 20003.589844
+rtupdate1: distance table was updated.
+             via   
+   D1 |    0     2 
+  ----|-----------
+     0|    0   999
+dest 2|  999     0
+     3|  999     2
+MAIN: rcv event, t=20005.486, at 0 src: 3, dest: 0, contents:   4   3   2   0
+rtupdate0 called by node #3 at 20005.486328
+rtupdate0: distance table was updated.
+                via     
+   D0 |    1     2    3 
+  ----|-----------------
+     1|    0     1     3
+dest 2|    1     0     2
+     3|    3     2     0
+
+Simulator terminated at t=20005.486328, no packets in medium
